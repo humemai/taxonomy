@@ -14,18 +14,19 @@ Wikidata provides entity dumps in various formats. The recommended file for this
 is `latest-all.json.gz`.
 
 1. **Install aria2 for faster downloads**:
-    ```sh
-    pip install aria2
-    ```
+
+   ```sh
+   pip install aria2
+   ```
 
 2. **Download the file**:
 
-    ```sh
-    aria2c --max-connection-per-server=16 https://dumps.wikimedia.org/wikidatawiki/entities/latest-all.json.gz
-    ```
+   ```sh
+   aria2c --max-connection-per-server=16 https://dumps.wikimedia.org/wikidatawiki/entities/latest-all.json.gz
+   ```
 
    As of 18-Dec-2024, the file size for `latest-all.json.gz` is approximately `140.6
-   GB`.
+GB`.
 
    Note: Alternatively, you can download the .bz2 version, but .gz is generally faster
    to process.
@@ -96,7 +97,7 @@ Example Entity (`Q42` - Douglas Adams)
 
 ## Processing Wikidata Entities
 
-The provided `run.py` script extracts data from the `latest-all.json.gz` file,
+The provided `run_entities.py` script extracts data from the `latest-all.json.gz` file,
 simplifies it, and writes the processed entities into batch JSON files for further use.
 It only extracts English data to save space.
 
@@ -159,7 +160,7 @@ A simplified representation of the example entity `Q42`:
 Run the script using the following command:
 
 ```sh
-python run.py --file_path ./data/latest-all.json.gz --output_dir ./data/entities
+python run_entities.py --file_path ./data/latest-all.json.gz --output_dir ./data/entities
 --num_workers 8 --num_entities_per_batch 10000
 ```
 
@@ -186,6 +187,27 @@ python run.py --file_path ./data/latest-all.json.gz --output_dir ./data/entities
 3. **Extending Functionality**:
    - You can modify the script to include additional fields or further simplify the
      output depending on your requirements.
+
+## Get all the properties as json
+
+Simply run:
+
+```bash
+python run_properties.py
+```
+
+This will run the SPARQL query from the Wikidata website and save the results to a file called `properties.json`.
+
+`properties.json` will look like:
+
+```json
+{
+  P6: "head of government",
+  ...
+}
+```
+
+where the key is the property ID and the value is the property label.
 
 ## Contributing
 
