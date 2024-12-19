@@ -163,5 +163,6 @@ cython_debug/
 
 # data
 data/
+entities/
 latest-all.json.gz
 properties.json

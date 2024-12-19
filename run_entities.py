@@ -4,16 +4,24 @@ It reads the compressed JSON file in chunks, simplifies the entity data by
 extracting essential fields and relationships, and saves the processed
 data into batch files. The script supports multiprocessing for efficiency.
 
+Features:
+- Handles both array-based and newline-delimited JSON formats.
+- Strips beginning (`[`) and ending (`]`) brackets for JSON arrays.
+- Supports multiprocessing for faster batch processing.
+- Efficiently writes valid JSON output batches.
+- Logs processing time, output details, and statistics.
+- Includes a `dummy run` mode for quick testing.
+
 Usage:
     python run.py <file_path> <output_dir> [--num_workers <int>]
-    [--num_entities_per_batch <int>] [--lines_per_chunk <int>]
+    [--num_entities_per_batch <int>] [--dummy]
 
 Arguments:
     file_path: Path to the gzipped Wikidata JSON file (e.g., `latest-all.json.gz`).
     output_dir: Directory to store the output batch files.
     --num_workers: Number of parallel worker processes (default: 4).
     --num_entities_per_batch: Number of entities per batch file (default: 10000).
-    --lines_per_chunk: Number of lines to read per chunk (default: 100000).
+    --dummy: Run in dummy mode (process 100 entities with preset parameters).
 """
 
 import gzip
@@ -21,16 +29,17 @@ import ijson
 import os
 import json
 import argparse
+import time
 from decimal import Decimal
 from multiprocessing import Pool
 
 
-def custom_serializer(obj) -> None:
+def custom_serializer(obj: any) -> float:
     """
     Serialize non-serializable objects like Decimal.
 
     Args:
-        obj: The object to serialize.
+        obj (any): The object to serialize.
 
     Returns:
         float: The serialized object as a float.
@@ -74,9 +83,58 @@ def extract_claims(claims: dict) -> dict:
     return simplified_claims
 
 
-def process_batch(batch: list, output_dir: str, batch_idx: int) -> None:
+def process_entity(entity: dict) -> dict:
     """
-    Process a batch of entities and save them as a JSON file.
+    Simplify an individual entity for batch processing.
+
+    Args:
+        entity (dict): The original entity dictionary.
+
+    Returns:
+        dict: The simplified entity dictionary.
+    """
+    return {
+        "id": entity.get("id"),
+        "type": entity.get("type"),
+        "labels": (
+            {"en": entity["labels"]["en"]["value"]}
+            if "labels" in entity and "en" in entity["labels"]
+            else {}
+        ),
+        "descriptions": (
+            {"en": entity["descriptions"]["en"]["value"]}
+            if "descriptions" in entity and "en" in entity["descriptions"]
+            else {}
+        ),
+        "aliases": (
+            {"en": [alias["value"] for alias in entity["aliases"]["en"]]}
+            if "aliases" in entity and "en" in entity["aliases"]
+            else {}
+        ),
+        "claims": extract_claims(entity.get("claims", {})),
+        "modified": entity.get("modified"),
+    }
+
+
+def format_size(size: int) -> str:
+    """
+    Format size in bytes to a human-readable string (e.g., KB, MB, GB, TB).
+
+    Args:
+        size (int): Size in bytes.
+
+    Returns:
+        str: Human-readable size string.
+    """
+    for unit in ["bytes", "KB", "MB", "GB", "TB"]:
+        if size < 1024.0:
+            return f"{size:.2f} {unit}"
+        size /= 1024.0
+
+
+def write_batch(batch: list, output_dir: str, batch_idx: int) -> None:
+    """
+    Write a batch of entities to a JSON file.
 
     Args:
         batch (list): List of simplified entities.
@@ -88,15 +146,28 @@ def process_batch(batch: list, output_dir: str, batch_idx: int) -> None:
         json.dump(batch, f, ensure_ascii=False, indent=4, default=custom_serializer)
 
 
-def worker(task: tuple) -> None:
+def format_time(seconds: float) -> str:
     """
-    Worker function to process a single batch task.
+    Format time duration into days, hours, minutes, and seconds.
 
     Args:
-        task (tuple): A tuple containing the batch, output directory, and batch index.
+        seconds (float): Time duration in seconds.
+
+    Returns:
+        str: Formatted time duration string.
     """
-    batch, output_dir, batch_idx = task
-    process_batch(batch, output_dir, batch_idx)
+    days, seconds = divmod(seconds, 86400)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    parts = []
+    if days > 0:
+        parts.append(f"{int(days)}d")
+    if hours > 0 or days > 0:
+        parts.append(f"{int(hours)}h")
+    if minutes > 0 or hours > 0 or days > 0:
+        parts.append(f"{int(minutes)}m")
+    parts.append(f"{seconds:.2f}s")
+    return " ".join(parts)
 
 
 def process_in_chunks(
@@ -104,121 +175,87 @@ def process_in_chunks(
     output_dir: str,
     num_workers: int,
     num_entities_per_batch: int,
-    lines_per_chunk: int,
+    dummy: bool = False,
 ) -> None:
     """
-    Process the Wikidata JSON dump in manageable chunks.
+    Process the Wikidata JSON dump in manageable chunks with parallel entity processing.
 
     Args:
         file_path (str): Path to the gzipped Wikidata JSON file.
         output_dir (str): Directory to store the output batch files.
         num_workers (int): Number of worker processes for multiprocessing.
         num_entities_per_batch (int): Number of entities per batch file.
-        lines_per_chunk (int): Number of lines to read into memory per chunk.
+        dummy (bool): Whether to run in dummy mode.
     """
+    if dummy:
+        print("Running in dummy mode...")
+        output_dir = "./dummy"
+        num_workers = 3
+        num_entities_per_batch = 7
+
     os.makedirs(output_dir, exist_ok=True)
     print(f"Processing {file_path} with {num_workers} workers...")
 
+    start_time = time.time()
+    entity_count = 0
+    batch_idx = 0
+    batch = []
+    tasks = []
+
     with gzip.open(file_path, "rt", encoding="utf-8") as file:
-        entity_count = 0
-        batch_idx = 0
-        batch = []
-        chunk = []
+        with Pool(num_workers) as pool:
+            # Use ijson to parse individual JSON objects from the array
+            for entity in ijson.items(file, "item"):
+                if dummy and entity_count >= 71:
+                    break
 
-        try:
-            # Attempt to parse as JSON array using ijson
-            for item in ijson.items(file, "item"):
-                chunk.append(item)
-                if len(chunk) >= lines_per_chunk:
-                    for entity in chunk:
-                        filtered_entity = {
-                            "id": entity.get("id"),
-                            "type": entity.get("type"),
-                            "labels": (
-                                {"en": entity["labels"]["en"]["value"]}
-                                if "labels" in entity and "en" in entity["labels"]
-                                else {}
-                            ),
-                            "descriptions": (
-                                {"en": entity["descriptions"]["en"]["value"]}
-                                if "descriptions" in entity
-                                and "en" in entity["descriptions"]
-                                else {}
-                            ),
-                            "aliases": (
-                                {
-                                    "en": [
-                                        alias["value"]
-                                        for alias in entity["aliases"]["en"]
-                                    ]
-                                }
-                                if "aliases" in entity and "en" in entity["aliases"]
-                                else {}
-                            ),
-                            "claims": extract_claims(entity.get("claims", {})),
-                            "modified": entity.get("modified"),
-                        }
-                        batch.append(filtered_entity)
-                        entity_count += 1
+                # Parallelize `process_entity`
+                tasks.append(pool.apply_async(process_entity, (entity,)))
 
-                        if len(batch) >= num_entities_per_batch:
-                            task = (batch, output_dir, batch_idx)
-                            with Pool(num_workers) as pool:
-                                pool.map(worker, [task])
-                            batch = []
-                            batch_idx += 1
-
-                            if entity_count % 10000 == 0:
-                                print(f"Processed {entity_count} entities...")
-
-                    chunk = []
-
-        except ijson.common.IncompleteJSONError:
-            # Fallback to reading as newline-delimited JSON
-            print("Falling back to line-by-line parsing (ndjson detected)...")
-            file.seek(0)
-            for line in file:
-                entity = json.loads(line.strip())
-                filtered_entity = {
-                    "id": entity.get("id"),
-                    "type": entity.get("type"),
-                    "labels": (
-                        {"en": entity["labels"]["en"]["value"]}
-                        if "labels" in entity and "en" in entity["labels"]
-                        else {}
-                    ),
-                    "descriptions": (
-                        {"en": entity["descriptions"]["en"]["value"]}
-                        if "descriptions" in entity and "en" in entity["descriptions"]
-                        else {}
-                    ),
-                    "aliases": (
-                        {"en": [alias["value"] for alias in entity["aliases"]["en"]]}
-                        if "aliases" in entity and "en" in entity["aliases"]
-                        else {}
-                    ),
-                    "claims": extract_claims(entity.get("claims", {})),
-                    "modified": entity.get("modified"),
-                }
-                batch.append(filtered_entity)
                 entity_count += 1
 
-                if len(batch) >= num_entities_per_batch:
-                    task = (batch, output_dir, batch_idx)
-                    with Pool(num_workers) as pool:
-                        pool.map(worker, [task])
+                # Collect results when enough tasks are queued
+                if len(tasks) >= num_entities_per_batch:
+                    for task in tasks:
+                        batch.append(task.get())  # Retrieve processed entities
+                    write_batch(batch, output_dir, batch_idx)
                     batch = []
                     batch_idx += 1
+                    tasks = []
 
                     if entity_count % 10000 == 0:
                         print(f"Processed {entity_count} entities...")
 
-        if batch:
-            task = (batch, output_dir, batch_idx)
-            with Pool(num_workers) as pool:
-                pool.map(worker, [task])
+            # Final batch
+            for task in tasks:
+                batch.append(task.get())
+            if batch:
+                write_batch(batch, output_dir, batch_idx)
 
-    print(f"Processing completed. Total entities processed: {entity_count}")
+    end_time = time.time()
+
+    # Log processing stats
+    log_file = os.path.join(output_dir, "processing_log.txt")
+    original_size = os.path.getsize(file_path)
+    output_size = sum(
+        os.path.getsize(os.path.join(output_dir, f))
+        for f in os.listdir(output_dir)
+        if f.endswith(".json")
+    )
+    avg_entity_size = output_size / entity_count if entity_count > 0 else 0
+
+    with open(log_file, "w") as log:
+        log.write(f"Processing completed\n")
+        log.write(f"Time taken: {end_time - start_time:.2f} seconds\n")
+        log.write(f"Total entities processed: {entity_count}\n")
+        log.write(f"Original file size: {format_size(original_size)}\n")
+        log.write(f"Output directory size: {format_size(output_size)}\n")
+        log.write(f"Average entity size: {avg_entity_size:.2f} bytes\n")
+
+    total_time = end_time - start_time
+    print(f"Processing completed in {format_time(total_time)}.")
+    print(f"Processing completed in {end_time - start_time:.2f} seconds.")
+    print(f"Log written to {log_file}")
 
 
 if __name__ == "__main__":
@@ -240,15 +277,14 @@ if __name__ == "__main__":
         default=10000,
         help="Entities per batch file.",
     )
-    parser.add_argument(
-        "--lines_per_chunk", type=int, default=100000, help="Lines to read per chunk."
-    )
+    parser.add_argument("--dummy", action="store_true", help="Run in dummy mode.")
 
     args = parser.parse_args()
+
     process_in_chunks(
         args.file_path,
         args.output_dir,
         args.num_workers,
         args.num_entities_per_batch,
-        args.lines_per_chunk,
+        dummy=args.dummy,
     )
