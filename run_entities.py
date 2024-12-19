@@ -118,7 +118,7 @@ def process_entity(entity: dict) -> dict:
 
 def format_size(size: int) -> str:
     """
-    Format size in bytes to a human-readable string (e.g., KB, MB, GB, TB).
+    Format size in bytes to a human-readable string (e.g., KiB, MiB, GiB, TiB).
 
     Args:
         size (int): Size in bytes.
@@ -126,7 +126,7 @@ def format_size(size: int) -> str:
     Returns:
         str: Human-readable size string.
     """
-    for unit in ["bytes", "KB", "MB", "GB", "TB"]:
+    for unit in ["bytes", "KiB", "MiB", "GiB", "TiB"]:
         if size < 1024.0:
             return f"{size:.2f} {unit}"
         size /= 1024.0
@@ -190,8 +190,8 @@ def process_in_chunks(
     if dummy:
         print("Running in dummy mode...")
         output_dir = "./dummy"
-        num_workers = 3
-        num_entities_per_batch = 7
+        num_workers = 4
+        num_entities_per_batch = 123
 
     os.makedirs(output_dir, exist_ok=True)
     print(f"Processing {file_path} with {num_workers} workers...")
@@ -199,62 +199,66 @@ def process_in_chunks(
     start_time = time.time()
     entity_count = 0
     batch_idx = 0
-    batch = []
-    tasks = []
+    entity_buffer = []
 
     with gzip.open(file_path, "rt", encoding="utf-8") as file:
+        # Initialize the pool of workers
         with Pool(num_workers) as pool:
-            # Use ijson to parse individual JSON objects from the array
+            # Use ijson to parse individual JSON objects (entities) from the array
             for entity in ijson.items(file, "item"):
-                if dummy and entity_count >= 71:
-                    break
-
-                # Parallelize `process_entity`
-                tasks.append(pool.apply_async(process_entity, (entity,)))
-
+                entity_buffer.append(entity)
                 entity_count += 1
 
-                # Collect results when enough tasks are queued
-                if len(tasks) >= num_entities_per_batch:
-                    for task in tasks:
-                        batch.append(task.get())  # Retrieve processed entities
-                    write_batch(batch, output_dir, batch_idx)
-                    batch = []
+                # If dummy mode and limit reached, break early
+                if dummy and entity_count >= 987:
+                    break
+
+                # Once we have enough entities for a batch, process them
+                if len(entity_buffer) >= num_entities_per_batch:
+                    print(f"Processing batch {batch_idx}...")
+                    processed_batch = pool.map(process_entity, entity_buffer)
+                    write_batch(processed_batch, output_dir, batch_idx)
+
+                    if entity_count % num_entities_per_batch == 0 and not dummy:
+                        print(
+                            f"Processed batch {batch_idx}!\n"
+                            f"{entity_count} entities processed so far..."
+                        )
+
                     batch_idx += 1
-                    tasks = []
+                    entity_buffer = []
 
-                    if entity_count % 10000 == 0:
-                        print(f"Processed {entity_count} entities...")
-
-            # Final batch
-            for task in tasks:
-                batch.append(task.get())
-            if batch:
-                write_batch(batch, output_dir, batch_idx)
+            # Handle the last batch if any remain
+            if entity_buffer:
+                processed_batch = pool.map(process_entity, entity_buffer)
+                write_batch(processed_batch, output_dir, batch_idx)
 
     end_time = time.time()
 
     # Log processing stats
     log_file = os.path.join(output_dir, "processing_log.txt")
-    original_size = os.path.getsize(file_path)
-    output_size = sum(
-        os.path.getsize(os.path.join(output_dir, f))
-        for f in os.listdir(output_dir)
-        if f.endswith(".json")
-    )
-    avg_entity_size = output_size / entity_count if entity_count > 0 else 0
+    if entity_count > 0:
+        original_size = os.path.getsize(file_path)
+        output_size = sum(
+            os.path.getsize(os.path.join(output_dir, f))
+            for f in os.listdir(output_dir)
+            if f.endswith(".json")
+        )
+        avg_entity_size = output_size / entity_count if entity_count > 0 else 0
+    else:
+        original_size = 0
+        output_size = 0
+        avg_entity_size = 0
+
+    total_time = end_time - start_time
 
     with open(log_file, "w") as log:
-        log.write(f"Processing completed\n")
-        log.write(f"Time taken: {end_time - start_time:.2f} seconds\n")
+        log.write(f"Processing completed in {format_time(total_time)}\n")
         log.write(f"Total entities processed: {entity_count}\n")
-        log.write(f"Original file size: {format_size(original_size)}\n")
+        log.write(f"Original file ({file_path}) size : {format_size(original_size)}\n")
         log.write(f"Output directory size: {format_size(output_size)}\n")
         log.write(f"Average entity size: {avg_entity_size:.2f} bytes\n")
 
-    total_time = end_time - start_time
-    print(f"Processing completed in {format_time(total_time)}.")
-    print(f"Processing completed in {end_time - start_time:.2f} seconds.")
     print(f"Log written to {log_file}")
 
 
