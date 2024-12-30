@@ -278,7 +278,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num_entities_per_batch",
         type=int,
-        default=10000,
+        default=50000,
         help="Entities per batch file.",
     )
     parser.add_argument("--dummy", action="store_true", help="Run in dummy mode.")

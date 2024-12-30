@@ -25,15 +25,7 @@ is `latest-all.json.gz`.
    aria2c --max-connection-per-server=16 https://dumps.wikimedia.org/wikidatawiki/entities/latest-all.json.gz
    ```
 
-   As of 18-Dec-2024, the file size for `latest-all.json.gz` is approximately `140.6
-GB`.
-
-   Note: Alternatively, you can download the .bz2 version, but .gz is generally faster
-   to process.
-
-Wikidata provides entity dumps in various formats. Download
-https://dumps.wikimedia.org/wikidatawiki/entities/latest-all.json.gz. As of 18-Dec-2024,
-the file size for `latest-all.json.gz` is approximately `140.6 GB`.
+   As of 18-Dec-2024, the file size for `latest-all.json.gz` is approximately `141 GB`.
 
 ## Understanding Wikidata Entities
 
@@ -150,7 +142,7 @@ A simplified representation of the example entity `Q42`:
 ### Prerequisites
 
 - Install the required Python packages:
-  ```sh
+  ```bash
   pip install ijson
   ```
 - Ensure you have enough storage space for the output files.
@@ -159,34 +151,37 @@ A simplified representation of the example entity `Q42`:
 
 Run the script using the following command:
 
-```sh
-python run_entities.py --file_path ./data/latest-all.json.gz --output_dir ./data/entities
---num_workers 8 --num_entities_per_batch 10000
+```bash
+python run_entities.py <FILE_PATH> <OUTPUT_DIR> --num_workers <NUM_WORKERS> --num_entities_per_batch <NUM_ENTITIES_PER_BATCH>
 ```
 
 #### Arguments:
 
-- `--file_path`: Path to the gzipped Wikidata JSON file.
-- `--output_dir`: Directory to store the processed batch files.
-- `--num_workers`: Number of parallel workers (default: 8).
-- `--num_entities_per_batch`: Number of entities per batch file (default: 10,000).
+- `file_path`: Path to the gzipped Wikidata JSON file (e.g., `latest-all.json.gz`).
+- `output_dir`: Directory to store the processed batch files (e.g., `entities/`).
+- `--num_workers`: Number of parallel worker processes (default: 4).
+- `--num_entities_per_batch`: Number of entities per batch file (default: 50,000).
+- `--dummy`: Optional flag to run the script in dummy mode for testing. In dummy mode,
+  only 987 entities are processed, and 123 entities per batch are used by default.
 
-## Notes and Recommendations
+## Time, Memory, and Storage Considerations
 
-1. **Performance Optimization**:
+### Time
 
-   - Increase `--num_workers` if you have a multi-core CPU.
-   - Adjust `--num_entities_per_batch` based on available memory.
+On my 32 core machine, it took about 1 day and 3 hours to process the entire `latest-all.json.gz` file
+with 32 workers and 50,000 entities per batch. It's important to note that the time depends
+on the processing power of your machine and the size of the input file. The total processed entities are 113,343,436.
 
-2. **Storage Considerations**:
+### Memory
 
-   - Each batch file can be large depending on the number of entities and their
-     complexity. Ensure you have enough disk space for both the input file and the
-     output files.
+The memory is not a major concern since the script processes entities in parallel and
+writes them to files as they are processed. This script only consumes a few GB of
+memory.
 
-3. **Extending Functionality**:
-   - You can modify the script to include additional fields or further simplify the
-     output depending on your requirements.
+### Storage
+
+The storage requirements depend on the size of the input file and the number of entities
+processed per batch. It's important to have sufficient storage space (~400 GB) for the output files.
 
 ## Get all the properties as json
 
