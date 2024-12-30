@@ -191,18 +191,28 @@ Simply run:
 python run_properties.py
 ```
 
-This will run the SPARQL query from the Wikidata website and save the results to a file called `properties.json`.
+This will run the SPARQL query to fetch properties from the Wikidata website, retrieve their aliases and descriptions, and save the results to a file called `properties.json`.
 
 `properties.json` will look like:
 
 ```json
-{
-  P6: "head of government",
+[
+  {
+    "property_id": "P6",
+    "label": "head of government",
+    "aliases": ["leader", "chief of state"],
+    "description": "The principal leader of a government, particularly a nation."
+  },
   ...
-}
+]
 ```
 
-where the key is the property ID and the value is the property label.
+Each entry in the JSON file contains the following fields:
+
+- `property_id`: The unique identifier for the property (e.g., `P6`).
+- `label`: The name or label of the property (e.g., "head of government").
+- `aliases`: A list of alternative labels for the property (e.g., ["leader", "chief of state"]).
+- `description`: A description of the property (e.g., "The principal leader of a government, particularly a nation.").
 
 ## Contributing
 
