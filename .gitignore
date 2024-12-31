@@ -162,6 +162,11 @@ cython_debug/
 #.idea/
 
 # data
-data/
 entities/
 latest-all.json.gz
+entity_instance_of.json
+entity_subclass_of.json
+entityid2label.json
+properties_used.json
+properties.jsoln
+stats.json

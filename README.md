@@ -214,6 +214,34 @@ Each entry in the JSON file contains the following fields:
 - `aliases`: A list of alternative labels for the property (e.g., ["leader", "chief of state"]).
 - `description`: A description of the property (e.g., "The principal leader of a government, particularly a nation.").
 
+## Process entities (`process_entities.py`)
+
+This script processes batches of Wikidata entity JSON files in parallel. It extracts relevant information, counts missing data, and saves the results in various JSON files. The script supports parallel processing using the specified number of processes.
+
+The following JSON files are generated:
+
+- `entityid2label.json`: Maps entity IDs to their English labels.
+- `entity_instance_of.json`: Contains the "instance of" (P31) claims for each entity.
+- `entity_subclass_of.json`: Contains the "subclass of" (P279) claims for each entity.
+- `properties_used.json`: A count of all properties used, ordered by their occurrences.
+- `stats.json`: A summary of missing data (e.g., missing labels or properties).
+
+### Arguments:
+
+- `--num_processes`: Number of parallel processes to use (default: 1).
+- `--include_qualifiers`: Whether to include qualifiers in the claims (optional).
+- `--dummy`: Processes only 10 files (for testing purposes) (optional).
+
+### Output Files:
+
+- **`entityid2label.json`**: Maps entity IDs to English labels.
+- **`entity_instance_of.json`**: Contains "instance of" (P31) claims.
+- **`entity_subclass_of.json`**: Contains "subclass of" (P279) claims.
+- **`properties_used.json`**: A count of properties used, ordered by occurrences.
+- **`stats.json`**: Summary of missing data (e.g., missing labels or claims).
+
+This script is designed for efficiency, processing batches of entities in parallel, and saving the results in JSON files. Make sure to set up the required number of processes to speed up the execution for large datasets.
+
 ## Contributing
 
 Contributions are what make the open source community such an amazing place to be learn,
