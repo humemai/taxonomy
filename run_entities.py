@@ -1,179 +1,294 @@
 """
-Script to fetch Wikidata properties via a SPARQL query and save them as a JSON file.
+This script processes a Wikidata JSON dump into simplified JSON batches.
+It reads the compressed JSON file in chunks, simplifies the entity data by
+extracting essential fields and relationships, and saves the processed
+data into batch files. The script supports multiprocessing for efficiency.
 
-This script downloads the list of properties from Wikidata using a SPARQL query,
-processes the data to extract property IDs, labels, aliases, and descriptions, 
-and saves the result as a JSON file named 'properties.json'.
+Features:
+- Handles both array-based and newline-delimited JSON formats.
+- Strips beginning (`[`) and ending (`]`) brackets for JSON arrays.
+- Supports multiprocessing for faster batch processing.
+- Efficiently writes valid JSON output batches.
+- Logs processing time, output details, and statistics.
+- Includes a `dummy run` mode for quick testing.
 
 Usage:
-    python fetch_wikidata_properties.py
+    python run.py <file_path> <output_dir> [--num_workers <int>]
+    [--num_entities_per_batch <int>] [--dummy]
+
+Arguments:
+    file_path: Path to the gzipped Wikidata JSON file (e.g., `latest-all.json.gz`).
+    output_dir: Directory to store the output batch files.
+    --num_workers: Number of parallel worker processes (default: 4).
+    --num_entities_per_batch: Number of entities per batch file (default: 10000).
+    --dummy: Run in dummy mode (process 100 entities with preset parameters).
 """
 
-import requests
+import gzip
+import ijson
+import os
 import json
-from SPARQLWrapper import SPARQLWrapper, JSON
+import argparse
+import time
+from decimal import Decimal
+from multiprocessing import Pool
 
 
-def fetch_wikidata_properties(sparql_query_url):
+def custom_serializer(obj: any) -> float:
     """
-    Fetch the JSON data from the given SPARQL query URL.
+    Serialize non-serializable objects like Decimal.
 
     Args:
-        sparql_query_url (str): The URL of the SPARQL query to fetch data from.
+        obj (any): The object to serialize.
 
     Returns:
-        dict: The JSON data parsed into a Python dictionary.
+        float: The serialized object as a float.
 
     Raises:
-        Exception: If the HTTP request fails.
+        TypeError: If the object type is not serializable.
     """
-    response = requests.get(sparql_query_url)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        raise Exception(f"Failed to fetch data. Status code: {response.status_code}")
+    if isinstance(obj, Decimal):
+        return float(obj)
+    raise TypeError(f"Type {type(obj)} not serializable")
 
 
-def fetch_all_property_ids():
+def extract_claims(claims: dict) -> dict:
     """
-    Fetch all property IDs and labels from Wikidata using SPARQL.
-
-    Returns:
-        list: A list of tuples (property_id, property_label).
-    """
-    sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
-
-    all_properties = []
-    offset = 0
-    limit = 500  # Fetch 500 properties per query to avoid timeouts
-
-    print("Fetching property IDs and labels...")
-    while True:
-        sparql.setQuery(
-            f"""
-            SELECT DISTINCT ?property ?propertyLabel
-            WHERE {{
-              ?property rdf:type wikibase:Property.
-              SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
-            }}
-            LIMIT {limit}
-            OFFSET {offset}
-        """
-        )
-        sparql.setReturnFormat(JSON)
-        results = sparql.query().convert()
-
-        chunk = [
-            (
-                result["property"]["value"].split("/")[-1],
-                result["propertyLabel"]["value"],
-            )
-            for result in results["results"]["bindings"]
-        ]
-        if not chunk:
-            break  # Stop if no more results are returned
-
-        all_properties.extend(chunk)
-        offset += limit  # Move to the next chunk
-
-    print(f"Fetched {len(all_properties)} properties.")
-    return all_properties
-
-
-def fetch_property_details(property_id):
-    """
-    Fetch aliases and descriptions for a given property ID.
+    Extract simplified claims and their qualifiers from an entity's claims.
 
     Args:
-        property_id (str): The property ID to fetch details for.
+        claims (dict): Claims dictionary from a Wikidata entity.
 
     Returns:
-        tuple: A tuple containing a list of aliases and a description (or None if not available).
+        dict: A simplified representation of claims with qualifiers.
     """
-    sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
-
-    # Query 1: Get all aliases
-    sparql.setQuery(
-        f"""
-        SELECT DISTINCT ?alias
-        WHERE {{
-          wd:{property_id} skos:altLabel ?alias.
-          FILTER (LANG(?alias) = "en")
-        }}
-    """
-    )
-    sparql.setReturnFormat(JSON)
-    aliases_results = sparql.query().convert()
-
-    aliases = [
-        result["alias"]["value"] for result in aliases_results["results"]["bindings"]
-    ]
-
-    # Query 2: Get the description
-    sparql.setQuery(
-        f"""
-        SELECT DISTINCT ?description
-        WHERE {{
-          wd:{property_id} schema:description ?description.
-          FILTER (LANG(?description) = "en")
-        }}
-    """
-    )
-    description_results = sparql.query().convert()
-    description = (
-        description_results["results"]["bindings"][0]["description"]["value"]
-        if description_results["results"]["bindings"]
-        else None
-    )
-
-    return aliases, description
-
-
-def save_properties(properties_dict, output_file):
-    """
-    Save the properties dictionary to a JSON file.
-
-    Args:
-        properties_dict (dict): The dictionary containing property details.
-        output_file (str): The path to the output JSON file.
-    """
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(properties_dict, f, ensure_ascii=False, indent=4)
-    print(f"Properties saved to {output_file}")
-
-
-def main():
-    """
-    Main function to fetch, process, and save Wikidata properties.
-    """
-    try:
-        # Fetch all property IDs and labels
-        property_ids = fetch_all_property_ids()
-        print(f"Total number of properties fetched: {len(property_ids)}")
-
-        properties = []
-
-        # Iterate over property IDs and fetch aliases and descriptions
-        print("Fetching details for each property...")
-        for index, (property_id, property_label) in enumerate(property_ids, start=1):
-            if index % 50 == 0:  # Print progress every 50 properties
-                print(f"Processed {index} properties...")
-
-            aliases, description = fetch_property_details(property_id)
-            property_data = {
-                "property_id": property_id,
-                "label": property_label,
-                "aliases": aliases,
-                "description": description,
+    simplified_claims = {}
+    for property_id, statements in claims.items():
+        simplified_claims[property_id] = []
+        for statement in statements:
+            value = statement.get("mainsnak", {}).get("datavalue", {}).get("value")
+            if isinstance(value, dict) and "entity-type" in value:
+                value = value.get("id")
+            qualifiers = {
+                qualifier_id: [
+                    q.get("datavalue", {}).get("value") for q in qualifier_statements
+                ]
+                for qualifier_id, qualifier_statements in statement.get(
+                    "qualifiers", {}
+                ).items()
             }
-            properties.append(property_data)
+            simplified_claims[property_id].append(
+                {"value": value, "qualifiers": qualifiers}
+            )
+    return simplified_claims
 
-        # Save the properties to a JSON file
-        save_properties(properties, "properties.json")
 
-    except Exception as e:
-        print(f"An error occurred: {e}")
+def process_entity(entity: dict) -> dict:
+    """
+    Simplify an individual entity for batch processing.
+
+    Args:
+        entity (dict): The original entity dictionary.
+
+    Returns:
+        dict: The simplified entity dictionary.
+    """
+    return {
+        "id": entity.get("id"),
+        "type": entity.get("type"),
+        "labels": (
+            {"en": entity["labels"]["en"]["value"]}
+            if "labels" in entity and "en" in entity["labels"]
+            else {}
+        ),
+        "descriptions": (
+            {"en": entity["descriptions"]["en"]["value"]}
+            if "descriptions" in entity and "en" in entity["descriptions"]
+            else {}
+        ),
+        "aliases": (
+            {"en": [alias["value"] for alias in entity["aliases"]["en"]]}
+            if "aliases" in entity and "en" in entity["aliases"]
+            else {}
+        ),
+        "claims": extract_claims(entity.get("claims", {})),
+        "modified": entity.get("modified"),
+    }
+
+
+def format_size(size: int) -> str:
+    """
+    Format size in bytes to a human-readable string (e.g., KiB, MiB, GiB, TiB).
+
+    Args:
+        size (int): Size in bytes.
+
+    Returns:
+        str: Human-readable size string.
+    """
+    for unit in ["bytes", "KiB", "MiB", "GiB", "TiB"]:
+        if size < 1024.0:
+            return f"{size:.2f} {unit}"
+        size /= 1024.0
+
+
+def write_batch(batch: list, output_dir: str, batch_idx: int) -> None:
+    """
+    Write a batch of entities to a JSON file.
+
+    Args:
+        batch (list): List of simplified entities.
+        output_dir (str): Directory to store the batch file.
+        batch_idx (int): Index of the batch for file naming.
+    """
+    batch_file = os.path.join(output_dir, f"batch_{batch_idx}.json")
+    with open(batch_file, "w", encoding="utf-8") as f:
+        json.dump(batch, f, ensure_ascii=False, indent=4, default=custom_serializer)
+
+
+def format_time(seconds: float) -> str:
+    """
+    Format time duration into days, hours, minutes, and seconds.
+
+    Args:
+        seconds (float): Time duration in seconds.
+
+    Returns:
+        str: Formatted time duration string.
+    """
+    days, seconds = divmod(seconds, 86400)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    parts = []
+    if days > 0:
+        parts.append(f"{int(days)}d")
+    if hours > 0 or days > 0:
+        parts.append(f"{int(hours)}h")
+    if minutes > 0 or hours > 0 or days > 0:
+        parts.append(f"{int(minutes)}m")
+    parts.append(f"{seconds:.2f}s")
+    return " ".join(parts)
+
+
+def process_in_chunks(
+    file_path: str,
+    output_dir: str,
+    num_workers: int,
+    num_entities_per_batch: int,
+    dummy: bool = False,
+) -> None:
+    """
+    Process the Wikidata JSON dump in manageable chunks with parallel entity processing.
+
+    Args:
+        file_path (str): Path to the gzipped Wikidata JSON file.
+        output_dir (str): Directory to store the output batch files.
+        num_workers (int): Number of worker processes for multiprocessing.
+        num_entities_per_batch (int): Number of entities per batch file.
+        dummy (bool): Whether to run in dummy mode.
+    """
+    if dummy:
+        print("Running in dummy mode...")
+        output_dir = "./dummy"
+        num_workers = 4
+        num_entities_per_batch = 123
+
+    os.makedirs(output_dir, exist_ok=True)
+    print(f"Processing {file_path} with {num_workers} workers...")
+
+    start_time = time.time()
+    entity_count = 0
+    batch_idx = 0
+    entity_buffer = []
+
+    with gzip.open(file_path, "rt", encoding="utf-8") as file:
+        # Initialize the pool of workers
+        with Pool(num_workers) as pool:
+            # Use ijson to parse individual JSON objects (entities) from the array
+            for entity in ijson.items(file, "item"):
+                entity_buffer.append(entity)
+                entity_count += 1
+
+                # If dummy mode and limit reached, break early
+                if dummy and entity_count >= 987:
+                    break
+
+                # Once we have enough entities for a batch, process them
+                if len(entity_buffer) >= num_entities_per_batch:
+                    print(f"Processing batch {batch_idx}...")
+                    processed_batch = pool.map(process_entity, entity_buffer)
+                    write_batch(processed_batch, output_dir, batch_idx)
+
+                    if entity_count % num_entities_per_batch == 0 and not dummy:
+                        print(
+                            f"Processed batch {batch_idx}!\n"
+                            f"{entity_count} entities processed so far..."
+                        )
+
+                    batch_idx += 1
+                    entity_buffer = []
+
+            # Handle the last batch if any remain
+            if entity_buffer:
+                processed_batch = pool.map(process_entity, entity_buffer)
+                write_batch(processed_batch, output_dir, batch_idx)
+
+    end_time = time.time()
+
+    # Log processing stats
+    log_file = os.path.join(output_dir, "processing_log.txt")
+    if entity_count > 0:
+        original_size = os.path.getsize(file_path)
+        output_size = sum(
+            os.path.getsize(os.path.join(output_dir, f))
+            for f in os.listdir(output_dir)
+            if f.endswith(".json")
+        )
+        avg_entity_size = output_size / entity_count if entity_count > 0 else 0
+    else:
+        original_size = 0
+        output_size = 0
+        avg_entity_size = 0
+
+    total_time = end_time - start_time
+
+    with open(log_file, "w") as log:
+        log.write(f"Processing completed in {format_time(total_time)}\n")
+        log.write(f"Total entities processed: {entity_count}\n")
+        log.write(f"Original file ({file_path}) size : {format_size(original_size)}\n")
+        log.write(f"Output directory size: {format_size(output_size)}\n")
+        log.write(f"Average entity size: {avg_entity_size:.2f} bytes\n")
+
+    print(f"Log written to {log_file}")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Process Wikidata JSON dump into simplified JSON batches."
+    )
+    parser.add_argument(
+        "file_path", type=str, help="Path to the gzipped Wikidata JSON file."
+    )
+    parser.add_argument(
+        "output_dir", type=str, help="Directory to store the output batches."
+    )
+    parser.add_argument(
+        "--num_workers", type=int, default=4, help="Number of parallel workers."
+    )
+    parser.add_argument(
+        "--num_entities_per_batch",
+        type=int,
+        default=50000,
+        help="Entities per batch file.",
+    )
+    parser.add_argument("--dummy", action="store_true", help="Run in dummy mode.")
+
+    args = parser.parse_args()
+
+    process_in_chunks(
+        args.file_path,
+        args.output_dir,
+        args.num_workers,
+        args.num_entities_per_batch,
+        dummy=args.dummy,
+    )
