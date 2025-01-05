@@ -236,7 +236,7 @@ def process_in_chunks(
     end_time = time.time()
 
     # Log processing stats
-    log_file = os.path.join(output_dir, "processing_log.txt")
+    log_file = os.path.join(output_dir, "run_entities.log")
     if entity_count > 0:
         original_size = os.path.getsize(file_path)
         output_size = sum(

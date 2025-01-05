@@ -167,6 +167,9 @@ latest-all.json.gz
 entity_instance_of.json
 entity_subclass_of.json
 entityid2label.json
+properties_stats.json
 properties_used.json
 properties.json
 stats.json
+P31/
+P279/

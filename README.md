@@ -1,14 +1,16 @@
 # Wikidata
 
-This repo contains python file to parse the raw wikidata dump to create `json`s with
-entities
+This repository contains Python scripts designed to process and analyze the raw Wikidata
+dump files. It enables the extraction of key information, such as entity labels,
+relationships, and property usage statistics. There are four scripts, and they can be
+run in parallel.
 
 ## Storage Requirements
 
 Working with Wikidata requires significant storage space. Ensure you have sufficient
 capacity before proceeding.
 
-### Downloading the Dump File
+### Downloading the Latest Dump File
 
 Wikidata provides entity dumps in various formats. The recommended file for this process
 is `latest-all.json.gz`.
@@ -87,103 +89,7 @@ Example Entity (`Q42` - Douglas Adams)
 }
 ```
 
-## Processing Wikidata Entities
-
-The provided `run_entities.py` script extracts data from the `latest-all.json.gz` file,
-simplifies it, and writes the processed entities into batch JSON files for further use.
-It only extracts English data to save space.
-
-### How the Processing Works
-
-1. **Extracting Key Information**: The script filters out essential fields:
-
-   - `id`: The entity's unique identifier (e.g., `Q42`).
-   - `type`: The type of the entity (e.g., `item` or `property`).
-   - `labels`: A dictionary of multilingual labels (e.g., English).
-   - `descriptions`: A dictionary of multilingual descriptions.
-   - `aliases`: Alternative names for the entity.
-   - `claims`: Simplified representation of the entity's relationships and attributes.
-
-2. **Batching Entities**:
-
-   - Instead of saving each entity as a separate file, entities are grouped into batches
-     (e.g., 10,000 entities per batch). This improves performance and reduces the number
-     of files.
-
-3. **Parallel Processing**:
-
-   - The script uses multiprocessing to process entities in parallel, significantly
-     speeding up the extraction.
-
-4. **Output Format**:
-   - Each batch is saved as a JSON file (`batch_0.json`, `batch_1.json`, etc.) in the
-     specified output directory.
-
-### Example of Simplified Output
-
-A simplified representation of the example entity `Q42`:
-
-```json
-{
-  "id": "Q42",
-  "type": "item",
-  "labels": { "en": "Douglas Adams" },
-  "descriptions": {
-    "en": "English author and humorist"
-  },
-  "aliases": { "en": ["Douglas Noel Adams"] },
-  "claims": { "P31": [{ "value": "Q5", "qualifiers": {} }] },
-  "modified": "2024-12-03T18:56:58Z"
-}
-```
-
-## Running the Script
-
-### Prerequisites
-
-- Install the required Python packages:
-  ```bash
-  pip install ijson
-  ```
-- Ensure you have enough storage space for the output files.
-
-### Usage
-
-Run the script using the following command:
-
-```bash
-python run_entities.py <FILE_PATH> <OUTPUT_DIR> --num_workers <NUM_WORKERS> --num_entities_per_batch <NUM_ENTITIES_PER_BATCH>
-```
-
-#### Arguments:
-
-- `file_path`: Path to the gzipped Wikidata JSON file (e.g., `latest-all.json.gz`).
-- `output_dir`: Directory to store the processed batch files (e.g., `entities/`).
-- `--num_workers`: Number of parallel worker processes (default: 4).
-- `--num_entities_per_batch`: Number of entities per batch file (default: 50,000).
-- `--dummy`: Optional flag to run the script in dummy mode for testing. In dummy mode,
-  only 987 entities are processed, and 123 entities per batch are used by default.
-
-## Time, Memory, and Storage Considerations
-
-### Time
-
-On my 32 core machine, it took about 1 day and 3 hours to process the entire `latest-all.json.gz` file
-with 32 workers and 50,000 entities per batch. It's important to note that the time depends
-on the processing power of your machine and the size of the input file. The total processed entities are 113,343,436.
-
-### Memory
-
-The memory is not a major concern since the script processes entities in parallel and
-writes them to files as they are processed. This script only consumes a few GB of
-memory.
-
-### Storage
-
-The storage requirements depend on the size of the input file and the number of entities
-processed per batch. It's important to have sufficient storage space (~400 GB) for the output files.
-
-## Get all the properties as json
+## Get all the properties as json: [`run_properties.py`](run_properties.py)
 
 Simply run:
 
@@ -191,56 +97,184 @@ Simply run:
 python run_properties.py
 ```
 
-This will run the SPARQL query to fetch properties from the Wikidata website, retrieve their aliases and descriptions, and save the results to a file called `properties.json`.
+This will run the SPARQL query to fetch properties from the Wikidata website, retrieve
+their aliases and descriptions, and save the results to a file called `properties.json`.
 
 `properties.json` will look like:
 
 ```json
-[
-  {
-    "property_id": "P6",
-    "label": "head of government",
-    "aliases": ["leader", "chief of state"],
-    "description": "The principal leader of a government, particularly a nation."
-  },
-  ...
-]
+{
+  "P6": {
+  "label": "head of government",
+  "aliases": ["leader", "chief of state"],
+  "description": "The principal leader of a government, particularly a nation."
+},
+...
+}
 ```
 
 Each entry in the JSON file contains the following fields:
 
 - `property_id`: The unique identifier for the property (e.g., `P6`).
 - `label`: The name or label of the property (e.g., "head of government").
-- `aliases`: A list of alternative labels for the property (e.g., ["leader", "chief of state"]).
-- `description`: A description of the property (e.g., "The principal leader of a government, particularly a nation.").
+- `aliases`: A list of alternative labels for the property (e.g., ["leader", "chief of
+  state"]).
+- `description`: A description of the property (e.g., "The principal leader of a
+  government, particularly a nation.").
 
-## Process entities (`process_entities.py`)
+## Get subclass_of (P279) triples: [`run_p279.py`](run_p279.py)
 
-This script processes batches of Wikidata entity JSON files in parallel. It extracts relevant information, counts missing data, and saves the results in various JSON files. The script supports parallel processing using the specified number of processes.
+To extract `subclass_of` (`P279`) relationships from the Wikidata dump, you can use the
+provided Python script `run_p279.py`. This script processes the raw JSON dump, extracts
+`P279` claims, and saves them in a TSV format for easier downstream analysis.
 
-The following JSON files are generated:
+### Steps to Extract `P279` Triples
 
-- `entityid2label.json`: Maps entity IDs to their English labels.
-- `entity_instance_of.json`: Contains the "instance of" (P31) claims for each entity.
-- `entity_subclass_of.json`: Contains the "subclass of" (P279) claims for each entity.
-- `properties_used.json`: A count of all properties used, ordered by their occurrences.
-- `stats.json`: A summary of missing data (e.g., missing labels or properties).
+1. **Run the `run_p279.py` script**: Use the following command to extract `P279`
+   triples:
 
-### Arguments:
+   python run_p279.py --dump_file latest-all.json.gz --p279_dir P279
+   --num_entities_per_batch 50000 --dummy
 
-- `--num_processes`: Number of parallel processes to use (default: 1).
-- `--include_qualifiers`: Whether to include qualifiers in the claims (optional).
-- `--dummy`: Processes only 10 files (for testing purposes) (optional).
+   - `--dump_file`: Path to the Wikidata JSON dump (`latest-all.json.gz`).
+   - `--p279_dir`: Directory where the `P279` triples will be stored (default: `P279`).
+   - `--num_entities_per_batch`: Number of entities to process per batch (default:
+     50,000).
+   - `--dummy`: Optional flag to process only the first batch for testing purposes.
 
-### Output Files:
+2. **Output Structure**: The script will save `P279` triples in a tab-separated file
+   (`.tsv`) with the following format:
 
-- **`entityid2label.json`**: Maps entity IDs to English labels.
-- **`entity_instance_of.json`**: Contains "instance of" (P31) claims.
-- **`entity_subclass_of.json`**: Contains "subclass of" (P279) claims.
-- **`properties_used.json`**: A count of properties used, ordered by occurrences.
-- **`stats.json`**: Summary of missing data (e.g., missing labels or claims).
+   ```tsv
+   entity_id\tproperty_id\tvalue_id
+   ...
+   ```
 
-This script is designed for efficiency, processing batches of entities in parallel, and saving the results in JSON files. Make sure to set up the required number of processes to speed up the execution for large datasets.
+   Each file will contain a batch of triples, named as `batch_0.tsv`, `batch_1.tsv`,
+   etc., in the specified output directory.
+
+3. **Check Logs**: A log file, `run_p279.log`, will be created in the parent directory
+   of `--p279_dir`. It includes information about the processing time, total entities
+   processed, and any errors encountered during JSON decoding.
+
+4. **Sample Output**: Suppose you extract `P279` triples from the provided example
+   entity (`Q42` - Douglas Adams). The result in the output file would look like this:
+
+   ```tsv
+   entity_id\tproperty_id\tvalue_id
+   Q42\tP279\tQ5
+   Q123\tP279\tQ456
+   ...
+   ```
+
+### Tips for Efficient Processing
+
+- **Batch Size**: Adjust the `--num_entities_per_batch` parameter based on your system’s
+  memory and processing capabilities. Larger batches reduce file overhead but require
+  more memory.
+- **Dummy Mode**: Use `--dummy` mode to test the script with minimal processing.
+- **Parallel Downloads**: For faster download of the dump file, use a tool like `aria2`
+  as mentioned earlier.
+
+Once the script has finished running, you will have all `P279` triples extracted and
+saved in an easy-to-process format, ready for further analysis or integration into other
+systems.
+
+## Get instance_of (P31) triples: [`run_p31.py`](run_p31.py)
+
+To extract `instance_of` (`P31`) relationships from the Wikidata dump, use the
+`run_p31.py` script:
+
+### Steps to Extract `P31` Triples
+
+1. Run the script: `python run_p31.py --dump_file latest-all.json.gz --p31_dir P31
+--num_entities_per_batch 50000`
+
+   - `--dump_file`: Path to the Wikidata JSON dump (`latest-all.json.gz`).
+   - `--p31_dir`: Directory to store `P31` triples (default: `P31`).
+   - `--num_entities_per_batch`: Number of entities per batch (default: 50,000).
+   - `--dummy`: Optional flag to process only the first batch.
+
+2. Output Structure: The script saves triples in `.tsv` files under `--p31_dir`:
+
+   ```tsv
+   entity_id\tproperty_id\tvalue_id
+   Q42\tP31\tQ5
+   ...
+   ```
+
+3. Logs: A log file `run_p31.log` is created with details like processing time and
+   errors.
+
+4. Note that this can run in parallel with `run_p279.py`. Do so to save time.
+
+## Get English labels: [`run_entityid2label.py`](run_entityid2label.py)
+
+The `run_entityid2label.py` script extracts `entity ID` to `English labels` mappings
+from the Wikidata JSON dump and saves them as a JSON file.
+
+### Steps to Extract English Labels
+
+1. Run the script:
+
+   python run_entityid2label.py --dump_file latest-all.json.gz --output_file
+   entityid2label.json --dummy
+
+   - `--dump_file`: Path to the Wikidata JSON dump (`latest-all.json.gz`).
+   - `--output_file`: Path to save the `entityid2label.json` file (default:
+     `entityid2label.json`).
+   - `--dummy`: Optional flag to process only the first 10,000 entities for testing.
+
+2. Output Structure: The extracted labels are saved as a JSON file
+   (`entityid2label.json`) with the following format:
+
+   ```json
+   { "Q42": "Douglas Adams", "Q123": "September", ... }
+   ```
+
+3. Logs: A log file `run_entityid2label.log` is generated, containing:
+   - Total processing time (in days, hours, minutes, and seconds).
+   - Total entities processed.
+   - Total entities with English labels.
+   - Decoding errors.
+   - Path to the output file.
+
+This script is ideal for extracting and saving mappings of entity IDs to their English
+labels in a simple, usable format.
+
+## Get the stats of the properties used: [`run_properties_stats.py`](run_properties_stats.py)
+
+The `run_properties_stats.py` script calculates the usage statistics of properties in
+the Wikidata JSON dump and saves the results as a JSON file.
+
+### Steps to Get Property Stats
+
+1. Run the script:
+
+   python run_properties_stats.py --dump_file latest-all.json.gz --output_file
+   properties_stats.json --dummy
+
+   - `--dump_file`: Path to the Wikidata JSON dump (`latest-all.json.gz`).
+   - `--output_file`: Path to save the `properties_stats.json` file (default:
+     `properties_stats.json`).
+   - `--dummy`: Optional flag to process only the first 10,000 entities for testing.
+
+2. Output Structure: The property statistics are saved as a JSON file
+   (`properties_stats.json`) with the following format:
+
+   ```json
+   { "P31": 25000, "P279": 18000, ... }
+   ```
+
+   Each property ID (e.g., `P31`) is a key, and its value is the number of times the
+   property appears in the dump.
+
+3. Logs: A log file `run_properties_stats.log` is generated, containing:
+   - Total processing time (in days, hours, minutes, and seconds).
+   - Total entities processed.
+   - Decoding errors.
+   - Path to the output file.
+   - Top 5 most frequently used properties.
 
 ## Contributing
 

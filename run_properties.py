@@ -28,7 +28,7 @@ import argparse
 from tqdm.auto import tqdm
 
 
-def fetch_wikidata_properties(sparql_query_url):
+def fetch_wikidata_properties(sparql_query_url: str) -> dict:
     """
     Fetch the JSON data from the given SPARQL query URL.
 
@@ -48,7 +48,7 @@ def fetch_wikidata_properties(sparql_query_url):
         raise Exception(f"Failed to fetch data. Status code: {response.status_code}")
 
 
-def fetch_all_property_ids(is_dummy: bool = False):
+def fetch_all_property_ids(is_dummy: bool = False) -> list:
     """
     Fetch all property IDs and labels from Wikidata using SPARQL.
 
@@ -103,7 +103,7 @@ def fetch_all_property_ids(is_dummy: bool = False):
     return all_properties
 
 
-def fetch_property_details(property_id):
+def fetch_property_details(property_id: str) -> tuple[list, str]:
     """
     Fetch aliases and descriptions for a given property ID.
 
@@ -169,7 +169,7 @@ def fetch_property_details(property_id):
             time.sleep(5)  # Wait for 5 seconds before retrying
 
 
-def save_properties(properties_dict, output_file):
+def save_properties(properties_dict: dict, output_file: str) -> None:
     """
     Save the properties dictionary to a JSON file.
 
@@ -182,7 +182,7 @@ def save_properties(properties_dict, output_file):
     print(f"Properties saved to {output_file}")
 
 
-def main():
+def main() -> None:
     """
     Main function to fetch, process, and save Wikidata properties.
     """
@@ -203,7 +203,7 @@ def main():
         total_properties = len(property_ids)
         print(f"Total number of properties fetched: {total_properties}")
 
-        properties = []
+        properties_dict: dict[str, dict[str, str | list]] = {}  # Initialize the dictionary to store properties
 
         # Iterate over property IDs and fetch aliases and descriptions
         print("Fetching details for each property...")
@@ -215,16 +215,16 @@ def main():
                 print(f"Processed {index} properties ({percentage:.2f}% complete)...")
 
             aliases, description = fetch_property_details(property_id)
-            property_data = {
-                "property_id": property_id,
+
+            # Store the property details in the dictionary
+            properties_dict[property_id] = {
                 "label": property_label,
                 "aliases": aliases,
                 "description": description,
             }
-            properties.append(property_data)
 
         # Save the properties to a JSON file
-        save_properties(properties, "properties.json")
+        save_properties(properties_dict, "properties.json")
 
     except Exception as e:
         print(f"An error occurred: {e}")
