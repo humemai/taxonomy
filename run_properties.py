@@ -73,7 +73,7 @@ def fetch_all_property_ids(is_dummy: bool = False) -> list:
               ?property rdf:type wikibase:Property.
               SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
             }}
-            LIMIT {100 if is_dummy else 10000}  # Fetch a large number of properties
+            LIMIT {100 if is_dummy else 5000}  # Fetch a large number of properties
             OFFSET {offset}
         """
         )
@@ -111,7 +111,8 @@ def fetch_property_details(property_id: str) -> tuple[list, str]:
         property_id (str): The property ID to fetch details for.
 
     Returns:
-        tuple: A tuple containing a list of aliases and a description (or None if not available).
+        tuple: A tuple containing a list of aliases and a description (or None if not
+        available).
     """
     sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
 
@@ -182,20 +183,72 @@ def save_properties(properties_dict: dict, output_file: str) -> None:
     print(f"Properties saved to {output_file}")
 
 
+def log_processing(
+    log_file: str,
+    start_time: float,
+    end_time: float,
+    total_properties: int,
+    decoding_errors: int,
+) -> None:
+    """
+    Write processing details to a log file.
+
+    Args:
+        log_file (str): Path to the log file.
+        start_time (float): Start time in seconds.
+        end_time (float): End time in seconds.
+        total_properties (int): Total number of properties fetched.
+        decoding_errors (int): Number of decoding errors encountered.
+    """
+    elapsed_time = end_time - start_time
+    formatted_time = format_time(elapsed_time)
+
+    with open(log_file, "w", encoding="utf-8") as log_f:
+        log_f.write(f"Processing completed in: {formatted_time}\n")
+        log_f.write(f"Total properties fetched: {total_properties}\n")
+        log_f.write(f"Decoding errors: {decoding_errors}\n")
+        log_f.write(f"Output file: properties.json\n")
+        log_f.write(f"Log file: {log_file}\n")
+
+    print(f"Log file created at: {log_file}")
+
+
+def format_time(seconds: float) -> str:
+    """
+    Format time duration into days, hours, minutes, and seconds.
+    """
+    days, seconds = divmod(seconds, 86400)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    parts = []
+    if days > 0:
+        parts.append(f"{int(days)} day(s)")
+    if hours > 0:
+        parts.append(f"{int(hours)} hour(s)")
+    if minutes > 0:
+        parts.append(f"{int(minutes)} minute(s)")
+    parts.append(f"{seconds:.2f} second(s)")
+    return ", ".join(parts)
+
+
 def main() -> None:
     """
     Main function to fetch, process, and save Wikidata properties.
+    It also generates a log file with processing details.
     """
     # Set up command-line argument parsing
     parser = argparse.ArgumentParser(
-        description="Fetch Wikidata properties and save as JSON."
+        description="Fetch Wikidata properties and save them as JSON."
     )
     parser.add_argument(
         "--dummy",
         action="store_true",
-        help="Fetch only 100 properties for testing purposes.",
+        help="Only fetch 100 properties for testing purposes.",
     )
     args = parser.parse_args()
+
+    start_time = time.time()
+    decoding_errors = 0
 
     try:
         # Fetch property IDs and labels (limit to 100 if dummy argument is passed)
@@ -203,18 +256,25 @@ def main() -> None:
         total_properties = len(property_ids)
         print(f"Total number of properties fetched: {total_properties}")
 
-        properties_dict: dict[str, dict[str, str | list]] = {}  # Initialize the dictionary to store properties
+        properties_dict: dict[str, dict[str, str | list]] = (
+            {}
+        )  # Initialize the dictionary to store properties
 
         # Iterate over property IDs and fetch aliases and descriptions
         print("Fetching details for each property...")
         for index, (property_id, property_label) in tqdm(
-            enumerate(property_ids, start=1)
+            enumerate(property_ids, start=1), total=total_properties
         ):
             if index % 50 == 0:  # Print progress every 50 properties
                 percentage = (index / total_properties) * 100
                 print(f"Processed {index} properties ({percentage:.2f}% complete)...")
 
-            aliases, description = fetch_property_details(property_id)
+            try:
+                aliases, description = fetch_property_details(property_id)
+            except Exception as e:
+                print(f"Skipping property {property_id} due to error: {e}")
+                decoding_errors += 1
+                continue
 
             # Store the property details in the dictionary
             properties_dict[property_id] = {
@@ -224,10 +284,18 @@ def main() -> None:
             }
 
         # Save the properties to a JSON file
-        save_properties(properties_dict, "properties.json")
+        output_file = "properties.json"
+        save_properties(properties_dict, output_file)
 
     except Exception as e:
         print(f"An error occurred: {e}")
+        decoding_errors += 1
+
+    end_time = time.time()
+
+    # Save the log
+    log_file = "run_property.log"
+    log_processing(log_file, start_time, end_time, total_properties, decoding_errors)
 
 
 if __name__ == "__main__":

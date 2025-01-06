@@ -78,6 +78,8 @@ def extract_entityid2label(
                 if processed_count >= max_entities:
                     print("Dummy mode: Reached 10,000 entities. Stopping early.")
                     break
+                if processed_count % 50_000 == 0:
+                    print(f"Processed {processed_count} entities.")
 
             except json.JSONDecodeError:
                 decoding_errors += 1

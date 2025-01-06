@@ -2,8 +2,9 @@
 
 This repository contains Python scripts designed to process and analyze the raw Wikidata
 dump files. It enables the extraction of key information, such as entity labels,
-relationships, and property usage statistics. There are four scripts, and they can be
-run in parallel.
+relationships, and property usage statistics. There are five scripts, and they can all
+be run in parallel. As of 05-Jan-2025, there are 113,472,282 entities and 12,327
+properties in wikidata the database.
 
 ## Storage Requirements
 
@@ -27,7 +28,7 @@ is `latest-all.json.gz`.
    aria2c --max-connection-per-server=16 https://dumps.wikimedia.org/wikidatawiki/entities/latest-all.json.gz
    ```
 
-   As of 18-Dec-2024, the file size for `latest-all.json.gz` is approximately `141 GB`.
+   As of 05-Jan-2025, the file size for `latest-all.json.gz` is approximately `142 GB`.
 
 ## Understanding Wikidata Entities
 
@@ -122,6 +123,8 @@ Each entry in the JSON file contains the following fields:
 - `description`: A description of the property (e.g., "The principal leader of a
   government, particularly a nation.").
 
+**On my machine, this took about 1 hour and 11 minutes.**
+
 ## Get subclass_of (P279) triples: [`run_p279.py`](run_p279.py)
 
 To extract `subclass_of` (`P279`) relationships from the Wikidata dump, you can use the
@@ -180,6 +183,8 @@ Once the script has finished running, you will have all `P279` triples extracted
 saved in an easy-to-process format, ready for further analysis or integration into other
 systems.
 
+**On my machine, this took about 13 hours and 56 minutes.**
+
 ## Get instance_of (P31) triples: [`run_p31.py`](run_p31.py)
 
 To extract `instance_of` (`P31`) relationships from the Wikidata dump, use the
@@ -207,6 +212,8 @@ To extract `instance_of` (`P31`) relationships from the Wikidata dump, use the
    errors.
 
 4. Note that this can run in parallel with `run_p279.py`. Do so to save time.
+
+**On my machine, this took about 15 hours and 58 minutes.**
 
 ## Get English labels: [`run_entityid2label.py`](run_entityid2label.py)
 
@@ -242,25 +249,27 @@ from the Wikidata JSON dump and saves them as a JSON file.
 This script is ideal for extracting and saving mappings of entity IDs to their English
 labels in a simple, usable format.
 
-## Get the stats of the properties used: [`run_properties_stats.py`](run_properties_stats.py)
+**On my machine, this took about 2 hours and 38 minutes.**
 
-The `run_properties_stats.py` script calculates the usage statistics of properties in
+## Get the stats of the properties used: [`run_property_stats.py`](run_property_stats.py)
+
+The `run_property_stats.py` script calculates the usage statistics of properties in
 the Wikidata JSON dump and saves the results as a JSON file.
 
 ### Steps to Get Property Stats
 
 1. Run the script:
 
-   python run_properties_stats.py --dump_file latest-all.json.gz --output_file
-   properties_stats.json --dummy
+   python run_property_stats.py --dump_file latest-all.json.gz --output_file
+   property_stats.json --dummy
 
    - `--dump_file`: Path to the Wikidata JSON dump (`latest-all.json.gz`).
-   - `--output_file`: Path to save the `properties_stats.json` file (default:
-     `properties_stats.json`).
+   - `--output_file`: Path to save the `property_stats.json` file (default:
+     `property_stats.json`).
    - `--dummy`: Optional flag to process only the first 10,000 entities for testing.
 
 2. Output Structure: The property statistics are saved as a JSON file
-   (`properties_stats.json`) with the following format:
+   (`property_stats.json`) with the following format:
 
    ```json
    { "P31": 25000, "P279": 18000, ... }
@@ -269,12 +278,18 @@ the Wikidata JSON dump and saves the results as a JSON file.
    Each property ID (e.g., `P31`) is a key, and its value is the number of times the
    property appears in the dump.
 
-3. Logs: A log file `run_properties_stats.log` is generated, containing:
+3. Logs: A log file `run_property_stats.log` is generated, containing:
    - Total processing time (in days, hours, minutes, and seconds).
    - Total entities processed.
    - Decoding errors.
    - Path to the output file.
    - Top 5 most frequently used properties.
+
+**On my machine, this took about 2 hours and 40 minutes.**
+
+## Building a hierarchy using the P31 and P279 triples
+
+WIP.
 
 ## Contributing
 
