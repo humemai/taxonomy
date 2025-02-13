@@ -1,20 +1,26 @@
 #!/usr/bin/env python3
 """
-get_paths_optimized.py
+get_paths.py
 
-Generates all possible combinations of unique upward and/or downward paths for top N classes
-and exports them as batched TSV files into class-specific directories. Logs important
-statistics about the path extraction and combination process for each class.
+Generates all possible combinations of unique upward and/or downward paths for the top N classes
+and exports them as batched TSV files into class-specific directories. This script supports DFS-based
+path generation, filtering of paths by an allowed node threshold, and optional removal of the last
+downward path. It also logs detailed statistics for each class while managing memory via explicit
+garbage collection.
 
 Usage:
-    python get_paths_optimized.py [--num_classes NUM_CLASSES] [--min_depth MIN_DEPTH]
+    python get_paths.py [--num_classes NUM_CLASSES] [--min_depth MIN_DEPTH]
         [--max_depth MAX_DEPTH] [--max_paths_per_class MAX_PATHS_PER_CLASS]
+        [--allowed_threshold ALLOWED_THRESHOLD]
         [--batch_size BATCH_SIZE] --direction {upward,downward,both}
+        [--output_dir OUTPUT_DIR]
 
 Example:
-    python get_paths_optimized.py --num_classes 20 --min_depth 2 --max_depth 5
-        --max_paths_per_class 1000 --batch_size 50000 --direction both
+    python get_paths.py --num_classes 20 --min_depth 2 --max_depth 5 \
+        --max_paths_per_class 1000 --allowed_threshold 0.5 \
+        --batch_size 50000 --direction both --output_dir ./extracted_paths
 """
+
 
 import os
 import json
@@ -174,6 +180,28 @@ def generate_paths_dfs(
                 stack.append((adjacent, path + [adjacent]))
 
 
+def filter_paths_by_threshold(
+    paths: list[list[str]], allowed_nodes: set[str], threshold: float
+) -> list[list[str]]:
+    """
+    Filters paths such that at least 'threshold' fraction of nodes in each path are in allowed_nodes.
+
+    Args:
+        paths (list[list[str]]): The paths to filter.
+        allowed_nodes (set[str]): The allowed nodes (e.g., top classes).
+        threshold (float): The minimum fraction of nodes that must be in allowed_nodes.
+
+    Returns:
+        list[list[str]]: The filtered list of paths.
+    """
+    filtered = []
+    for path in paths:
+        allowed_count = sum(1 for node in path if node in allowed_nodes)
+        if (allowed_count / len(path)) >= threshold:
+            filtered.append(path)
+    return filtered
+
+
 def invert_mapping(child_to_parents: dict[str, list[str]]) -> dict[str, list[str]]:
     """
     Inverts a child_to_parents mapping to create a parent_to_children mapping,
@@ -219,6 +247,29 @@ def format_time(seconds: float) -> str:
     return ", ".join(parts)
 
 
+def unique_list_of_lists(lists: list[list]):
+    """
+    Returns the unique lists from a list of lists of strings.
+
+    Args:
+        lists (List[List[str]]): A list containing lists of strings.
+
+    Returns:
+        List[List[str]]: A list of unique lists of strings.
+    """
+    unique = []
+    seen = set()
+
+    for lst in lists:
+        # Convert the list to a tuple (which is hashable) for set membership check
+        key = tuple(lst)
+        if key not in seen:
+            seen.add(key)
+            unique.append(lst)
+
+    return unique
+
+
 def sample_and_combine_paths(
     num_classes: int,
     class_counts: dict[str, int],
@@ -230,6 +281,8 @@ def sample_and_combine_paths(
     max_depth: Optional[int] = None,
     max_paths_per_class: Optional[int] = None,
     batch_size: int = 50000,
+    allowed_threshold: Optional[float] = None,
+    remove_the_last_downward_path: bool = False,
 ) -> None:
     """
     Samples upward and/or downward paths from the top N classes, combines them in a shuffled order,
@@ -246,8 +299,14 @@ def sample_and_combine_paths(
         max_depth (Optional[int]): Maximum depth for path generation.
         max_paths_per_class (Optional[int]): Maximum number of paths per class for each direction.
         batch_size (int): Number of combined paths per batch TSV file.
+        allowed_threshold (Optional[float]): Minimum fraction of allowed nodes in a path.
+        remove_the_last_downward_path (bool): Remove the last downward path.
     """
     print(f"Starting path sampling and combination for top {num_classes} classes.")
+
+    # Compute allowed nodes (top num_classes) from class_counts keys
+    allowed_nodes = set(node for node, _ in islice(class_counts.items(), num_classes))
+
     with tqdm(total=num_classes, desc="Processing Classes") as pbar:
         for idx, (node, count) in enumerate(
             islice(class_counts.items(), num_classes), start=1
@@ -276,16 +335,14 @@ def sample_and_combine_paths(
                 upward_paths = list(upward_paths_gen)
                 print(f"Found {len(upward_paths)} upward paths for '{node}'.")
 
-                # Sample upward paths if necessary
-                if max_paths_per_class:
-                    print(
-                        f"Sampling up to {max_paths_per_class} upward paths for '{node}'."
+                # Apply threshold filtering if set:
+                if allowed_threshold is not None:
+                    upward_paths = filter_paths_by_threshold(
+                        upward_paths, allowed_nodes, allowed_threshold
                     )
-                    if len(upward_paths) > max_paths_per_class:
-                        upward_paths = random.sample(upward_paths, max_paths_per_class)
-                        print(f"Sampled {len(upward_paths)} upward paths.")
-
-                print(f"Total upward paths for '{node}': {len(upward_paths)}")
+                    print(
+                        f"After filtering, {len(upward_paths)} upward paths remain for '{node}'."
+                    )
 
                 # Initialize PathTrie for upward paths to ensure uniqueness
                 upward_trie = PathTrie()
@@ -311,20 +368,24 @@ def sample_and_combine_paths(
                     max_paths=max_paths_per_class,
                 )
                 downward_paths = list(downward_paths_gen)
+
+                # remove the last one since it's the instance level
+                if remove_the_last_downward_path:
+                    downward_paths = unique_list_of_lists(
+                        [path[:-1] for path in downward_paths if len(path[:-1]) > 0]
+                    )
+
                 print(f"Found {len(downward_paths)} downward paths for '{node}'.")
 
-                # Sample downward paths if necessary
-                if max_paths_per_class:
-                    print(
-                        f"Sampling up to {max_paths_per_class} downward paths for '{node}'."
-                    )
-                    if len(downward_paths) > max_paths_per_class:
-                        downward_paths = random.sample(
-                            downward_paths, max_paths_per_class
-                        )
-                        print(f"Sampled {len(downward_paths)} downward paths.")
-
                 print(f"Total downward paths for '{node}': {len(downward_paths)}")
+
+                if allowed_threshold is not None:
+                    downward_paths = filter_paths_by_threshold(
+                        downward_paths, allowed_nodes, allowed_threshold
+                    )
+                    print(
+                        f"After filtering, {len(downward_paths)} downward paths remain for '{node}'."
+                    )
 
                 # Initialize PathTrie for downward paths to ensure uniqueness
                 downward_trie = PathTrie()
@@ -621,6 +682,20 @@ def main():
         help="Maximum number of paths per class for each direction (default: None)",
     )
     parser.add_argument(
+        "--allowed_threshold",
+        type=float,
+        default=None,
+        help="Allowed threshold for the number of top classes in the generated paths (default: None)",
+    )
+
+    parser.add_argument(
+        "--no-remove_the_last_downward_path",
+        action="store_false",
+        dest="remove_the_last_downward_path",
+        help="Do not remove the last downward path (default: remove the last downward path is True)",
+    )
+
+    parser.add_argument(
         "--batch_size",
         type=int,
         default=50000,
@@ -633,15 +708,24 @@ def main():
         choices=["upward", "downward", "both"],
         help="Direction of paths to include: 'upward', 'downward', or 'both' (required)",
     )
+
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default="./extracted_paths",
+        help="Directory to store TSV and log files (default: './extracted_paths')",
+    )
     args = parser.parse_args()
 
     num_classes = args.num_classes
     MIN_DEPTH = args.min_depth
     MAX_DEPTH = args.max_depth
     MAX_PATHS_PER_CLASS = args.max_paths_per_class
+    ALLOWED_THRESHOLD = args.allowed_threshold
+    REMOVE_THE_LAST_DOWNWARD_PATH = args.remove_the_last_downward_path
     BATCH_SIZE = args.batch_size
     DIRECTION = args.direction
-    output_dir = "./extracted_paths"  # Directory to store TSV and log files
+    output_dir = args.output_dir
 
     # Validate direction argument
     if DIRECTION not in ("upward", "downward", "both"):
@@ -693,6 +777,8 @@ def main():
         max_depth=MAX_DEPTH,
         max_paths_per_class=MAX_PATHS_PER_CLASS,
         batch_size=BATCH_SIZE,
+        allowed_threshold=ALLOWED_THRESHOLD,
+        remove_the_last_downward_path=REMOVE_THE_LAST_DOWNWARD_PATH,
     )
 
     # End total timer

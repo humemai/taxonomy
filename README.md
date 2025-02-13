@@ -217,6 +217,63 @@ To extract `instance_of` (`P31`) relationships from the Wikidata dump, use the
 
 **On my machine, this took about 15 hours and 58 minutes.**
 
+## Extract English Descriptions from Wikidata [extract_en_descriptions.py](extract_en_descriptions.py)
+
+This script parses a compressed Wikidata JSON dump (e.g., latest-all.json.gz) and extracts the English descriptions of entities. It processes entities in batches, temporarily storing each batch as a TSV file. After aggregating all batches into a single JSON file, the temporary TSV directory is deleted.
+
+### Usage
+
+```
+python extract_en_descriptions.py \
+ --dump_file latest-all.json.gz \
+ --desc_dir Desc \
+ --num_entities_per_batch 50000 \
+ [--dummy]
+```
+
+- **--dump_file** (str, default: `latest-all.json.gz`)  
+  Path to the compressed Wikidata JSON dump.
+
+- **--desc_dir** (str, default: `Desc`)  
+  Directory where the TSV batch files are temporarily stored during processing.
+
+- **--num_entities_per_batch** (int, default: 50000)  
+  Number of entities to process per batch before writing results to a TSV file.
+
+- **--dummy** (flag)  
+  If set, only one batch of entities is processed. Useful for quick testing.
+
+### Output
+
+- **Final JSON File:**  
+  A file named en_description.json containing all extracted (entity_id, description) pairs.
+
+- **Log File:**  
+  A log file named run*`en_desc.log` is generated in the \_parent directory* of --desc_dir. This log includes:
+
+  - Total processing time
+  - Total entities processed
+  - Number of JSON decoding errors
+  - Path to the (now-deleted) TSV output directory
+
+- **Temporary TSV Files:**  
+  During processing, TSV files (e.g., `batch_0.tsv`, `batch_1.tsv`, etc.) are created in the directory specified by --desc_dir. **After aggregation, the entire --desc_dir directory is deleted**, leaving only en_description.json and the log file.
+
+### Example
+
+```
+python extract_en_descriptions.py \
+ --dump_file latest-all.json.gz \
+ --desc_dir Desc \
+ --num_entities_per_batch 50000
+```
+
+After the script completes:
+
+- The final JSON file `en_description.json` will contain all the extracted (entity_id, description) pairs.
+- The log file `run_en_desc.log` (located in the parent folder of Desc) will detail the extraction process.
+- The temporary TSV files in the Desc directory will have been removed.
+
 ## Get English labels: [`run_entityid2label.py`](run_entityid2label.py)
 
 The `run_entityid2label.py` script extracts `entity ID` to `English labels` mappings
@@ -290,6 +347,8 @@ Wikidata JSON dump and saves the results as a JSON file.
 **On my machine, this took about 2 hours and 40 minutes.**
 
 ## Building a hierarchy using the P31 and P279 triples
+
+This section requires that you ran all the 6 scripts above, which can run in parallel.
 
 ### [`process_p31_p279.py`](./process_p31_p279.py) Script Overview
 
@@ -412,8 +471,9 @@ class (`max_paths_per_class`), and the direction of path generation (`upward`,
 Run the script via the command line with required and optional arguments:
 
 ```bash
-python get_paths.py --num_classes 20 --max_depth 5 --max_paths_per_class 1000
---batch_size 50000 --direction both
+python get_paths.py --num_classes 20 --max_depth 5 --max_paths_per_class 1000\
+--allowed_threshold 0.3 --batch_size 50000 --direction both\
+--output_dir ./extracted_paths
 ```
 
 - `--num_classes`: Number of top classes to process (default: 10)
@@ -423,6 +483,8 @@ python get_paths.py --num_classes 20 --max_depth 5 --max_paths_per_class 1000
   (default: None)
 - `--batch_size`: Number of combined paths per batch TSV file (default: 50000)
 - `--direction`: Direction of paths to include (`upward`, `downward`, or `both`)
+- `--allowed_threshold`: Minimum fraction of allowed nodes in a path
+- `--output_dir`: Directory to save output files
   **(required)**
 
 #### Core Components
@@ -505,18 +567,11 @@ pip install tqdm psutil
 
 #### Example
 
-To process the top 15 classes with a maximum path depth of 7, limit to 500 paths per
-class in each direction, and include both upward and downward paths, run:
+What I used was
 
 ```bash
-python get_paths.py --num_classes 15 --min_depth 4 --max_depth 7 --max_paths_per_class 500
---direction both
+python get_paths.py --num_classes 10000 --allowed_threshold 0.25 --direction both
 ```
-
-This command will generate unique upward and downward paths for the top 15 classes, each
-path not exceeding 7 entities in length, and no more than 500 paths per direction per
-class. The results will be saved in the `extracted_paths` directory with corresponding
-log files.
 
 #### Notes
 
@@ -529,6 +584,60 @@ log files.
 
 This script is ideal for analyzing hierarchical data structures, such as taxonomies or
 ontologies, by extracting and managing unique paths efficiently.
+
+### [`process_paths.py`](./process_paths.py) Script Overview
+
+This script processes the hierarchical paths that were generated and saved by
+`get_paths.py`. It combines the extracted paths for some subset of classes (e.g., the
+top-K classes by instance count) into a single aggregated dataset, computes summary
+statistics about path lengths, and saves them for downstream analysis. Key steps include:
+
+- **Load `entityid2label`**: A JSON file mapping entity IDs to human-readable labels,
+  used to generate a vocabulary file where each entity’s ID is mapped to its label.
+- **Load `class_counts.json`**: A JSON file mapping class IDs to the number of instances
+  of each class, sorted in descending order of frequency.
+- **Select Classes**: The script can process the top K classes from `class_counts.json`
+  (e.g., 100, 1,000, 10,000). For each K in a user-specified list:
+  1. Identify the subdirectory in `extracted_paths` for each class among the top K.
+  2. Aggregate all `.tsv` files under those subdirectories into one big list of paths.
+  3. Compute path-length statistics (e.g., minimum, maximum, average, median, mode).
+  4. Produce a single histogram of all path lengths for these classes.
+  5. Count how many times each entity appears in the aggregated paths, then sort by
+     frequency.
+  6. Save two JSON files:
+     - `counts_{K}.json`: A dictionary of entity IDs to their frequencies in all paths
+       for these K classes (sorted by descending frequency).
+     - `vocab_{K}.json`: The same entities in the same order, with entity IDs mapped to
+       their labels.
+  7. Save a `stats_{K}.json` containing the overall path-length statistics across the
+     aggregated paths of the top K classes.
+
+**Core Features**:
+
+- Single histogram per top-K selection (no per-class histograms).
+- Single set of aggregated path-length statistics per top-K selection.
+- Generation of entity frequency counts and vocabulary mappings for these aggregated
+  paths.
+
+**Sample Usage**:
+
+    python process_paths.py \
+        --num-classes 10 100 1000 10000 \
+        --entityid2label-json ./entityid2label.json \
+        --class-counts-json ./process_p31_p279/class_counts.json \
+        --extracted-paths-dir ./extracted_paths \
+        --output-dir ./process_paths
+
+This will:
+
+- Create (if needed) a folder named `process_paths`.
+- For each of the top-K lists (10, 100, 1000, 10000):
+  - Read all paths from the corresponding classes’ folders under `./extracted_paths`.
+  - Build a single histogram of path lengths and save it as
+    `hist_path_lengths_top_{K}.png`.
+  - Compute stats (min, max, average, median, mode) for path lengths across all these
+    paths and save them in `stats_{K}.json`.
+  - Store entity frequencies in `counts_{K}.json` and their labels in `vocab_{K}.json`.
 
 ## Contributing
 
