@@ -217,13 +217,13 @@ To extract `instance_of` (`P31`) relationships from the Wikidata dump, use the
 
 **On my machine, this took about 15 hours and 58 minutes.**
 
-## Extract English Descriptions from Wikidata [extract_en_descriptions.py](extract_en_descriptions.py)
+## Extract English Descriptions from Wikidata [`extract_en_descriptions.py`](extract_en_descriptions.py)
 
 This script parses a compressed Wikidata JSON dump (e.g., latest-all.json.gz) and extracts the English descriptions of entities. It processes entities in batches, temporarily storing each batch as a TSV file. After aggregating all batches into a single JSON file, the temporary TSV directory is deleted.
 
 ### Usage
 
-```
+```bash
 python extract_en_descriptions.py \
  --dump_file latest-all.json.gz \
  --desc_dir Desc \
@@ -257,7 +257,7 @@ python extract_en_descriptions.py \
   - Path to the (now-deleted) TSV output directory
 
 - **Temporary TSV Files:**  
-  During processing, TSV files (e.g., `batch_0.tsv`, `batch_1.tsv`, etc.) are created in the directory specified by --desc_dir. **After aggregation, the entire --desc_dir directory is deleted**, leaving only en_description.json and the log file.
+  During processing, TSV files (e.g., `batch_0.tsv`, `batch_1.tsv`, etc.) are created in the directory specified by --desc_dir. **After aggregation, the entire --desc_dir directory is deleted**, leaving only `en_description.json` and the log file.
 
 ### Example
 
@@ -457,9 +457,9 @@ files.
 - **Trie Data Structure:** Utilizes a Trie to efficiently store and retrieve unique
   paths, eliminating duplicates.
 - **Configurable Parameters:** Users can specify the number of top classes (`N`),
-  minimum path depth (`min_depth), maximum path depth (`max_depth`), maximum paths per
-class (`max_paths_per_class`), and the direction of path generation (`upward`,
-`downward`, or `both`).
+  maximum path depth (`max_depth`), maximum paths per class (`max_paths_per_class`), and
+  the direction of path generation (`upward`,
+  `downward`, or `both`).
 - **Progress Monitoring:** Integrates `tqdm` for real-time progress tracking.
 - **Logging:** Records statistics such as the number of paths generated, unique paths
   extracted, time taken, and memory usage for each class.
@@ -476,15 +476,14 @@ python get_paths.py --num_classes 20 --max_depth 5 --max_paths_per_class 1000\
 --output_dir ./extracted_paths
 ```
 
-- `--num_classes`: Number of top classes to process (default: 10)
-- `--min_depth`: Minimum depth for path generation (default: None)
-- `--max_depth`: Maximum depth for path generation (default: None)
-- `--max_paths_per_class`: Maximum number of paths per class for each direction
+- `--num-classes`: Number of top classes to process (default: 10)
+- `--max-depth`: Maximum depth for path generation (default: None)
+- `--max-paths-per-class`: Maximum number of paths per class for each direction
   (default: None)
-- `--batch_size`: Number of combined paths per batch TSV file (default: 50000)
+- `--batch-size`: Number of combined paths per batch TSV file (default: 50000)
 - `--direction`: Direction of paths to include (`upward`, `downward`, or `both`)
-- `--allowed_threshold`: Minimum fraction of allowed nodes in a path
-- `--output_dir`: Directory to save output files
+- `--allowed-threshold`: Minimum fraction of allowed nodes in a path
+- `--output-dir`: Directory to save output files
   **(required)**
 
 #### Core Components
@@ -570,7 +569,7 @@ pip install tqdm psutil
 What I used was
 
 ```bash
-python get_paths.py --num_classes 10000 --allowed_threshold 0.25 --direction both
+python get_paths.py --num-classes 10000 --allowed-threshold 0.25 --direction both
 ```
 
 #### Notes
@@ -578,9 +577,8 @@ python get_paths.py --num_classes 10000 --allowed_threshold 0.25 --direction bot
 - Ensure that the input JSON files (`class_counts.json` and `child_to_parents.json`) are
   correctly formatted and located in the `./process_p31_p279/` directory.
 - The script is optimized for large datasets, but resource usage can still be
-  significant depending on the size and complexity of the input data. Adjust
-  `min_depth`, `max_depth` and `max_paths_per_class` as needed to balance performance
-  and comprehensiveness.
+  significant depending on the size and complexity of the input data. Adjust `max_depth`
+  and `max_paths_per_class` as needed to balance performance and comprehensiveness.
 
 This script is ideal for analyzing hierarchical data structures, such as taxonomies or
 ontologies, by extracting and managing unique paths efficiently.
@@ -604,13 +602,14 @@ statistics about path lengths, and saves them for downstream analysis. Key steps
   4. Produce a single histogram of all path lengths for these classes.
   5. Count how many times each entity appears in the aggregated paths, then sort by
      frequency.
-  6. Save two JSON files:
-     - `counts_{K}.json`: A dictionary of entity IDs to their frequencies in all paths
+  6. Save four JSON files:
+     - `counts_top_{K}.json`: A dictionary of entity IDs to their frequencies in all paths
        for these K classes (sorted by descending frequency).
-     - `vocab_{K}.json`: The same entities in the same order, with entity IDs mapped to
+     - `vocab_top_{K}.json`: The same entities in the same order, with entity IDs mapped to
        their labels.
-  7. Save a `stats_{K}.json` containing the overall path-length statistics across the
-     aggregated paths of the top K classes.
+     - `en_description_top_{K}.json`: A dictionary of entity IDs to their English descriptions.
+     - `stats_top_{K}.json` containing the overall path-length statistics across the
+       aggregated paths of the top K classes.
 
 **Core Features**:
 

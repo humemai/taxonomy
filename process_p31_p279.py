@@ -206,7 +206,7 @@ def plot_cumulative_distribution_properties(
     thresholds: list[int],
     properties_for_thresholds: dict[int, int],
     output_directory: str,
-    output_filename: str = "properties_cumulative_distribution.png",
+    output_filename: str = "properties_cumulative_distribution.pdf",
 ) -> None:
     """
     Plots the cumulative distribution of property usage and marks specified thresholds.
@@ -462,7 +462,7 @@ def plot_cumulative_distribution_classes(
     thresholds: list[int],
     classes_for_thresholds: dict[int, int],
     output_directory: str,
-    output_filename: str = "classes_cumulative_distribution.png",
+    output_filename: str = "classes_cumulative_distribution.pdf",
 ) -> None:
     """
     Plots the cumulative distribution of class counts and marks specified thresholds.
@@ -692,7 +692,7 @@ def main() -> None:
             thresholds=thresholds_properties,
             properties_for_thresholds=properties_for_thresholds,
             output_directory=output_directory,
-            output_filename="properties_cumulative_distribution.png",
+            output_filename="properties_cumulative_distribution.pdf",
         )
 
         # Print top 100 properties
@@ -770,7 +770,7 @@ def main() -> None:
             thresholds=thresholds_classes,
             classes_for_thresholds=classes_for_thresholds,
             output_directory=output_directory,
-            output_filename="classes_cumulative_distribution.png",
+            output_filename="classes_cumulative_distribution.pdf",
         )
 
         # Print top 100 classes

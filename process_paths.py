@@ -9,9 +9,10 @@ Script to process paths for top-K classes in Wikidata:
    - Gathers entity frequencies.
 4. Builds a single histogram of path lengths for all combined paths.
 5. Saves:
-   - A histogram image named: `hist_path_lengths_top_{num_classes}.png`
+   - A histogram image named: `hist_path_lengths_top_{num_classes}.pdf`
    - `counts_{num_classes}.json`: entity frequencies sorted descending
    - `vocab_{num_classes}.json`: labels in the same order as counts
+   - `en_description_top_{num_classes}.json`: English descriptions for top entities
    - `stats_{num_classes}.json`: overall path-length statistics (min, max, average, median, mode)
 """
 
@@ -42,6 +43,12 @@ def parse_arguments():
         type=str,
         default="./entityid2label.json",
         help="Path to the entityid2label.json file.",
+    )
+    parser.add_argument(
+        "--en_description-json",
+        type=str,
+        default="./en_description.json",
+        help="Path to the en_description.json file.",
     )
     parser.add_argument(
         "--class-counts-json",
@@ -117,6 +124,10 @@ def main():
     # 3. Load and sort class_counts in descending order
     with open(args.class_counts_json, "r", encoding="utf-8") as f:
         class_counts_full = json.load(f)
+
+    # 4. Load en_description
+    with open(args.en_description_json, "r", encoding="utf-8") as f:
+        en_description = json.load(f)
 
     class_counts_sorted = dict(
         sorted(class_counts_full.items(), key=lambda x: x[1], reverse=True)
@@ -222,7 +233,7 @@ def main():
         # 7. Plot a single histogram for all path lengths in top-K
         if total_paths > 0:
             histogram_path = os.path.join(
-                args.output_dir, f"hist_path_lengths_top_{num_classes}.png"
+                args.output_dir, f"hist_path_lengths_top_{num_classes}.pdf"
             )
             plot_histogram_from_frequency(
                 length_counter,
@@ -240,8 +251,8 @@ def main():
         vocab_sorted = {k: vocab[k] for k in counts_sorted if k in vocab}
 
         # 9. Save counts and vocab
-        counts_path = os.path.join(args.output_dir, f"counts_{num_classes}.json")
-        vocab_path = os.path.join(args.output_dir, f"vocab_{num_classes}.json")
+        counts_path = os.path.join(args.output_dir, f"counts_top_{num_classes}.json")
+        vocab_path = os.path.join(args.output_dir, f"vocab_top_{num_classes}.json")
 
         with open(counts_path, "w", encoding="utf-8") as cf:
             json.dump(counts_sorted, cf, ensure_ascii=False, indent=4)
@@ -251,7 +262,20 @@ def main():
 
         print(f"[INFO]   -> Saved {counts_path} and {vocab_path}")
 
-        # 10. Save stats
+        # 10. Save en_description for the top entities
+        # if the description is not available, we add None to the dictionary
+        en_description_top = {
+            ent: en_description.get(ent, None) for ent in counts_sorted
+        }
+        en_description_path = os.path.join(
+            args.output_dir, f"en_description_top_{num_classes}.json"
+        )
+        with open(en_description_path, "w", encoding="utf-8") as df:
+            json.dump(en_description_top, df, ensure_ascii=False, indent=4)
+
+        print(f"[INFO]   -> Saved {en_description_path}")
+
+        # 11. Save stats
         stats_dict = {
             "num_classes": len(filtered_class_counts),
             "total_paths": total_paths,
@@ -262,7 +286,7 @@ def main():
             "mode_path_length": mode_len,
         }
 
-        stats_path = os.path.join(args.output_dir, f"stats_{num_classes}.json")
+        stats_path = os.path.join(args.output_dir, f"stats_top_{num_classes}.json")
         with open(stats_path, "w", encoding="utf-8") as sf:
             json.dump(stats_dict, sf, ensure_ascii=False, indent=4)
 

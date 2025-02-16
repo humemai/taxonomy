@@ -9,14 +9,14 @@ downward path. It also logs detailed statistics for each class while managing me
 garbage collection.
 
 Usage:
-    python get_paths.py [--num_classes NUM_CLASSES] [--min_depth MIN_DEPTH]
-        [--max_depth MAX_DEPTH] [--max_paths_per_class MAX_PATHS_PER_CLASS]
-        [--allowed_threshold ALLOWED_THRESHOLD]
-        [--batch_size BATCH_SIZE] --direction {upward,downward,both}
-        [--output_dir OUTPUT_DIR]
+    python get_paths.py [--num-classes NUM_CLASSES]
+        [--max-depth MAX_DEPTH] [--max-paths-per-class MAX_PATHS_PER_CLASS]
+        [--allowed-threshold ALLOWED_THRESHOLD]
+        [--batch-size BATCH_SIZE] --direction {upward,downward,both}
+        [--output-dir OUTPUT_DIR]
 
 Example:
-    python get_paths.py --num_classes 20 --min_depth 2 --max_depth 5 \
+    python get_paths.py --num_classes 20 --max_depth 5 \
         --max_paths_per_class 1000 --allowed_threshold 0.5 \
         --batch_size 50000 --direction both --output_dir ./extracted_paths
 """
@@ -130,9 +130,11 @@ def get_memory_usage() -> float:
 def generate_paths_dfs(
     node: str,
     mapping: dict[str, list[str]],
-    min_depth: Optional[int] = None,
+    min_depth: int,
     max_depth: Optional[int] = None,
     max_paths: Optional[int] = None,
+    allowed_nodes: Optional[set[str]] = None,
+    allowed_threshold: Optional[float] = None,
 ) -> list[list[str]]:
     """
     Generates all complete paths from the given node using Depth-First Search (DFS),
@@ -142,11 +144,12 @@ def generate_paths_dfs(
         node (str): The starting node for path generation.
         mapping (dict[str, list[str]]): A mapping from each node to its adjacent nodes
             (either parents or children).
-        min_depth (Optional[int]): The minimum allowed depth for path generation.
-            If None, no lower bound.
+        min_depth (int): The minimum allowed depth for path generation.
         max_depth (Optional[int]): The maximum allowed depth for path generation.
             If None, no upper bound.
         max_paths (Optional[int]): The maximum number of paths to generate. If None, no limit.
+        allowed_nodes (Optional[set[str]]): The set of allowed nodes (e.g., top classes).
+        allowed_threshold (Optional[float]): The minimum fraction of allowed nodes that must be in a path.
 
     Yields:
         list[str]: A list of entities representing a complete path from the starting node.
@@ -164,42 +167,23 @@ def generate_paths_dfs(
         if max_depth and len(path) > max_depth:
             continue
 
-        # If current node has no adjacent nodes, it's a "complete" path
         if current not in mapping or not mapping[current]:
-            # Only yield if we meet the min_depth requirement
-            if min_depth is None or len(path) >= min_depth:
+            if len(path) >= min_depth:
+                # If threshold checking is requested, check the fraction here.
+                if allowed_nodes is not None and allowed_threshold is not None:
+                    allowed_count = sum(1 for n in path if n in allowed_nodes)
+                    if (allowed_count / len(path)) < allowed_threshold:
+                        continue  # Skip yielding this path.
                 yield path
                 paths_generated += 1
             continue
 
         adjacent_nodes = mapping.get(current, [])
-        random.shuffle(adjacent_nodes)
-
+        if max_paths is not None:
+            random.shuffle(adjacent_nodes)
         for adjacent in adjacent_nodes:
             if adjacent not in path:  # Prevent cycles
                 stack.append((adjacent, path + [adjacent]))
-
-
-def filter_paths_by_threshold(
-    paths: list[list[str]], allowed_nodes: set[str], threshold: float
-) -> list[list[str]]:
-    """
-    Filters paths such that at least 'threshold' fraction of nodes in each path are in allowed_nodes.
-
-    Args:
-        paths (list[list[str]]): The paths to filter.
-        allowed_nodes (set[str]): The allowed nodes (e.g., top classes).
-        threshold (float): The minimum fraction of nodes that must be in allowed_nodes.
-
-    Returns:
-        list[list[str]]: The filtered list of paths.
-    """
-    filtered = []
-    for path in paths:
-        allowed_count = sum(1 for node in path if node in allowed_nodes)
-        if (allowed_count / len(path)) >= threshold:
-            filtered.append(path)
-    return filtered
 
 
 def invert_mapping(child_to_parents: dict[str, list[str]]) -> dict[str, list[str]]:
@@ -277,12 +261,12 @@ def sample_and_combine_paths(
     parent_to_children: dict[str, list[str]],
     output_dir: str,
     direction: str,
-    min_depth: Optional[int] = None,
     max_depth: Optional[int] = None,
     max_paths_per_class: Optional[int] = None,
     batch_size: int = 50000,
     allowed_threshold: Optional[float] = None,
     remove_the_last_downward_path: bool = False,
+    nodes_to_avoid: list[str] = [],
 ) -> None:
     """
     Samples upward and/or downward paths from the top N classes, combines them in a shuffled order,
@@ -295,14 +279,15 @@ def sample_and_combine_paths(
         parent_to_children (dict[str, list[str]]): Parent to children mapping.
         output_dir (str): Directory where TSV and log files will be saved.
         direction (str): Direction of paths to include ('upward', 'downward', 'both').
-        min_depth (Optional[int]): Minimum depth for path generation.
         max_depth (Optional[int]): Maximum depth for path generation.
         max_paths_per_class (Optional[int]): Maximum number of paths per class for each direction.
         batch_size (int): Number of combined paths per batch TSV file.
         allowed_threshold (Optional[float]): Minimum fraction of allowed nodes in a path.
         remove_the_last_downward_path (bool): Remove the last downward path.
+        nodes_to_avoid (list[str]): List of nodes to avoid due to excessive paths.
     """
     print(f"Starting path sampling and combination for top {num_classes} classes.")
+    print(f"nodes to avoid: {nodes_to_avoid}")
 
     # Compute allowed nodes (top num_classes) from class_counts keys
     allowed_nodes = set(node for node, _ in islice(class_counts.items(), num_classes))
@@ -311,6 +296,9 @@ def sample_and_combine_paths(
         for idx, (node, count) in enumerate(
             islice(class_counts.items(), num_classes), start=1
         ):
+            if node in nodes_to_avoid:
+                continue
+
             class_start_time = time.time()
             print(
                 f"\n--- Processing Class {idx}/{num_classes}: '{node}' (Count: {count}) ---"
@@ -325,24 +313,19 @@ def sample_and_combine_paths(
             unique_upward_paths = []
             if direction in ("upward", "both"):
                 print(f"Generating upward paths for '{node}'...")
+
                 upward_paths_gen = generate_paths_dfs(
                     node,
                     child_to_parents,
-                    min_depth=min_depth,
+                    min_depth=2,
                     max_depth=max_depth,
                     max_paths=max_paths_per_class,
+                    allowed_nodes=allowed_nodes,
+                    allowed_threshold=allowed_threshold,
                 )
                 upward_paths = list(upward_paths_gen)
-                print(f"Found {len(upward_paths)} upward paths for '{node}'.")
 
-                # Apply threshold filtering if set:
-                if allowed_threshold is not None:
-                    upward_paths = filter_paths_by_threshold(
-                        upward_paths, allowed_nodes, allowed_threshold
-                    )
-                    print(
-                        f"After filtering, {len(upward_paths)} upward paths remain for '{node}'."
-                    )
+                print(f"Found {len(upward_paths)} upward paths for '{node}'.")
 
                 # Initialize PathTrie for upward paths to ensure uniqueness
                 upward_trie = PathTrie()
@@ -363,9 +346,11 @@ def sample_and_combine_paths(
                 downward_paths_gen = generate_paths_dfs(
                     node,
                     parent_to_children,
-                    min_depth=min_depth,
+                    min_depth=3,
                     max_depth=max_depth,
                     max_paths=max_paths_per_class,
+                    allowed_nodes=allowed_nodes,
+                    allowed_threshold=allowed_threshold,
                 )
                 downward_paths = list(downward_paths_gen)
 
@@ -376,16 +361,6 @@ def sample_and_combine_paths(
                     )
 
                 print(f"Found {len(downward_paths)} downward paths for '{node}'.")
-
-                print(f"Total downward paths for '{node}': {len(downward_paths)}")
-
-                if allowed_threshold is not None:
-                    downward_paths = filter_paths_by_threshold(
-                        downward_paths, allowed_nodes, allowed_threshold
-                    )
-                    print(
-                        f"After filtering, {len(downward_paths)} downward paths remain for '{node}'."
-                    )
 
                 # Initialize PathTrie for downward paths to ensure uniqueness
                 downward_trie = PathTrie()
@@ -658,45 +633,37 @@ def main():
         description="Generate, combine, batch, and export unique upward and/or downward paths for top N classes."
     )
     parser.add_argument(
-        "--num_classes",
+        "--num-classes",
         type=int,
         default=10,
         help="Number of top classes to process (default: 10)",
     )
     parser.add_argument(
-        "--min_depth",
-        type=int,
-        default=None,
-        help="Minimum depth for path generation (default: None)",
-    )
-    parser.add_argument(
-        "--max_depth",
+        "--max-depth",
         type=int,
         default=None,
         help="Maximum depth for path generation (default: None)",
     )
     parser.add_argument(
-        "--max_paths_per_class",
+        "--max-paths-per-class",
         type=int,
         default=None,
         help="Maximum number of paths per class for each direction (default: None)",
     )
     parser.add_argument(
-        "--allowed_threshold",
+        "--allowed-threshold",
         type=float,
         default=None,
         help="Allowed threshold for the number of top classes in the generated paths (default: None)",
     )
-
     parser.add_argument(
-        "--no-remove_the_last_downward_path",
+        "--no-remove-the-last-downward-path",
         action="store_false",
         dest="remove_the_last_downward_path",
         help="Do not remove the last downward path (default: remove the last downward path is True)",
     )
-
     parser.add_argument(
-        "--batch_size",
+        "--batch-size",
         type=int,
         default=50000,
         help="Number of combined paths per batch TSV file (default: 50000)",
@@ -708,17 +675,33 @@ def main():
         choices=["upward", "downward", "both"],
         help="Direction of paths to include: 'upward', 'downward', or 'both' (required)",
     )
-
     parser.add_argument(
-        "--output_dir",
+        "--class-counts-json",
+        type=str,
+        default="./process_p31_p279/class_counts.json",
+        help="Path to class_counts.json, which contains class counts (default: './process_p31_p279/class_counts.json')",
+    )
+    parser.add_argument(
+        "--child-to-parents-json",
+        type=str,
+        default="./process_p31_p279/child_to_parents.json",
+    )
+    parser.add_argument(
+        "--output-dir",
         type=str,
         default="./extracted_paths",
         help="Directory to store TSV and log files (default: './extracted_paths')",
     )
+    parser.add_argument(
+        "--nodes-to-avoid",
+        type=str,
+        nargs="+",
+        default=[],
+        help="List of nodes to avoid due to excessive paths (default: [])",
+    )
     args = parser.parse_args()
 
     num_classes = args.num_classes
-    MIN_DEPTH = args.min_depth
     MAX_DEPTH = args.max_depth
     MAX_PATHS_PER_CLASS = args.max_paths_per_class
     ALLOWED_THRESHOLD = args.allowed_threshold
@@ -726,6 +709,9 @@ def main():
     BATCH_SIZE = args.batch_size
     DIRECTION = args.direction
     output_dir = args.output_dir
+    class_counts_path = args.class_counts_json
+    child_to_parents_path = args.child_to_parents_json
+    nodes_to_avoid = args.nodes_to_avoid
 
     # Validate direction argument
     if DIRECTION not in ("upward", "downward", "both"):
@@ -741,25 +727,11 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
     print(f"Output directory '{output_dir}' is ready.")
 
-    # Load class_counts.json
-    class_counts_path = "./process_p31_p279/class_counts.json"
-    try:
-        with open(class_counts_path, "r", encoding="utf-8") as f:
-            class_counts = json.load(f)
-        print(f"Loaded '{class_counts_path}'.")
-    except Exception as e:
-        print(f"Error loading '{class_counts_path}': {e}")
-        return
+    with open(class_counts_path, "r", encoding="utf-8") as f:
+        class_counts = json.load(f)
 
-    # Load child_to_parents.json
-    child_to_parents_path = "./process_p31_p279/child_to_parents.json"
-    try:
-        with open(child_to_parents_path, "r", encoding="utf-8") as f:
-            child_to_parents = json.load(f)
-        print(f"Loaded '{child_to_parents_path}'.")
-    except Exception as e:
-        print(f"Error loading '{child_to_parents_path}': {e}")
-        return
+    with open(child_to_parents_path, "r", encoding="utf-8") as f:
+        child_to_parents = json.load(f)
 
     # Automatically generate parent_to_children mapping
     parent_to_children = invert_mapping(child_to_parents)
@@ -773,12 +745,12 @@ def main():
         parent_to_children=parent_to_children,
         output_dir=output_dir,
         direction=DIRECTION,
-        min_depth=MIN_DEPTH,
         max_depth=MAX_DEPTH,
         max_paths_per_class=MAX_PATHS_PER_CLASS,
         batch_size=BATCH_SIZE,
         allowed_threshold=ALLOWED_THRESHOLD,
         remove_the_last_downward_path=REMOVE_THE_LAST_DOWNWARD_PATH,
+        nodes_to_avoid=nodes_to_avoid,
     )
 
     # End total timer

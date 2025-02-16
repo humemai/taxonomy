@@ -179,3 +179,5 @@ vocab/
 en_description/
 en_description.json
 process_paths/
+model_output*/
+custom_tokenizer/
