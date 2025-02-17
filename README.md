@@ -219,7 +219,10 @@ To extract `instance_of` (`P31`) relationships from the Wikidata dump, use the
 
 ## Extract English Descriptions from Wikidata [`extract_en_descriptions.py`](extract_en_descriptions.py)
 
-This script parses a compressed Wikidata JSON dump (e.g., latest-all.json.gz) and extracts the English descriptions of entities. It processes entities in batches, temporarily storing each batch as a TSV file. After aggregating all batches into a single JSON file, the temporary TSV directory is deleted.
+This script parses a compressed Wikidata JSON dump (e.g., latest-all.json.gz) and
+extracts the English descriptions of entities. It processes entities in batches,
+temporarily storing each batch as a TSV file. After aggregating all batches into a
+single JSON file, the temporary TSV directory is deleted.
 
 ### Usage
 
@@ -246,10 +249,12 @@ python extract_en_descriptions.py \
 ### Output
 
 - **Final JSON File:**  
-  A file named en_description.json containing all extracted (entity_id, description) pairs.
+  A file named en_description.json containing all extracted (entity_id, description)
+  pairs.
 
 - **Log File:**  
-  A log file named run*`en_desc.log` is generated in the \_parent directory* of --desc_dir. This log includes:
+  A log file named run*`en_desc.log` is generated in the \_parent directory* of
+  --desc_dir. This log includes:
 
   - Total processing time
   - Total entities processed
@@ -257,11 +262,13 @@ python extract_en_descriptions.py \
   - Path to the (now-deleted) TSV output directory
 
 - **Temporary TSV Files:**  
-  During processing, TSV files (e.g., `batch_0.tsv`, `batch_1.tsv`, etc.) are created in the directory specified by --desc_dir. **After aggregation, the entire --desc_dir directory is deleted**, leaving only `en_description.json` and the log file.
+  During processing, TSV files (e.g., `batch_0.tsv`, `batch_1.tsv`, etc.) are created in
+  the directory specified by --desc_dir. **After aggregation, the entire --desc_dir
+  directory is deleted**, leaving only `en_description.json` and the log file.
 
 ### Example
 
-```
+```bash
 python extract_en_descriptions.py \
  --dump_file latest-all.json.gz \
  --desc_dir Desc \
@@ -270,8 +277,10 @@ python extract_en_descriptions.py \
 
 After the script completes:
 
-- The final JSON file `en_description.json` will contain all the extracted (entity_id, description) pairs.
-- The log file `run_en_desc.log` (located in the parent folder of Desc) will detail the extraction process.
+- The final JSON file `en_description.json` will contain all the extracted (entity_id,
+  description) pairs.
+- The log file `run_en_desc.log` (located in the parent folder of Desc) will detail the
+  extraction process.
 - The temporary TSV files in the Desc directory will have been removed.
 
 ## Get English labels: [`run_entityid2label.py`](run_entityid2label.py)
@@ -443,12 +452,11 @@ statistics. The script performs the following key tasks:
 
 ### [`get_paths.py`](./get_paths.py) Script Overview
 
-[`get_paths.py`](./get_paths.py) is a Python script designed to
-generate and export unique hierarchical paths for the top N classes from a dataset. It
-processes relationships between entities, extracts meaningful paths based on specified
-directions, and logs essential statistics for each class. The output consists of
-separate TSV (Tab-Separated Values) files for each class along with corresponding log
-files.
+[`get_paths.py`](./get_paths.py) is a Python script designed to generate and export
+unique hierarchical paths for the top N classes from a dataset. It processes
+relationships between entities, extracts meaningful paths based on specified directions,
+and logs essential statistics for each class. The output consists of separate TSV
+(Tab-Separated Values) files for each class along with corresponding log files.
 
 #### Key Features
 
@@ -458,8 +466,7 @@ files.
   paths, eliminating duplicates.
 - **Configurable Parameters:** Users can specify the number of top classes (`N`),
   maximum path depth (`max_depth`), maximum paths per class (`max_paths_per_class`), and
-  the direction of path generation (`upward`,
-  `downward`, or `both`).
+  the direction of path generation (`upward`, `downward`, or `both`).
 - **Progress Monitoring:** Integrates `tqdm` for real-time progress tracking.
 - **Logging:** Records statistics such as the number of paths generated, unique paths
   extracted, time taken, and memory usage for each class.
@@ -483,8 +490,7 @@ python get_paths.py --num_classes 20 --max_depth 5 --max_paths_per_class 1000\
 - `--batch-size`: Number of combined paths per batch TSV file (default: 50000)
 - `--direction`: Direction of paths to include (`upward`, `downward`, or `both`)
 - `--allowed-threshold`: Minimum fraction of allowed nodes in a path
-- `--output-dir`: Directory to save output files
-  **(required)**
+- `--output-dir`: Directory to save output files **(required)**
 
 #### Core Components
 
@@ -588,7 +594,8 @@ ontologies, by extracting and managing unique paths efficiently.
 This script processes the hierarchical paths that were generated and saved by
 `get_paths.py`. It combines the extracted paths for some subset of classes (e.g., the
 top-K classes by instance count) into a single aggregated dataset, computes summary
-statistics about path lengths, and saves them for downstream analysis. Key steps include:
+statistics about path lengths, and saves them for downstream analysis. Key steps
+include:
 
 - **Load `entityid2label`**: A JSON file mapping entity IDs to human-readable labels,
   used to generate a vocabulary file where each entity’s ID is mapped to its label.
@@ -603,11 +610,12 @@ statistics about path lengths, and saves them for downstream analysis. Key steps
   5. Count how many times each entity appears in the aggregated paths, then sort by
      frequency.
   6. Save four JSON files:
-     - `counts_top_{K}.json`: A dictionary of entity IDs to their frequencies in all paths
-       for these K classes (sorted by descending frequency).
-     - `vocab_top_{K}.json`: The same entities in the same order, with entity IDs mapped to
-       their labels.
-     - `en_description_top_{K}.json`: A dictionary of entity IDs to their English descriptions.
+     - `counts_top_{K}.json`: A dictionary of entity IDs to their frequencies in all
+       paths for these K classes (sorted by descending frequency).
+     - `vocab_top_{K}.json`: The same entities in the same order, with entity IDs mapped
+       to their labels.
+     - `en_description_top_{K}.json`: A dictionary of entity IDs to their English
+       descriptions.
      - `stats_top_{K}.json` containing the overall path-length statistics across the
        aggregated paths of the top K classes.
 
@@ -620,12 +628,14 @@ statistics about path lengths, and saves them for downstream analysis. Key steps
 
 **Sample Usage**:
 
-    python process_paths.py \
-        --num-classes 10 100 1000 10000 \
-        --entityid2label-json ./entityid2label.json \
-        --class-counts-json ./process_p31_p279/class_counts.json \
-        --extracted-paths-dir ./extracted_paths \
-        --output-dir ./process_paths
+```bash
+python process_paths.py \
+    --num-classes 10 100 1000 10000 \
+    --entityid2label-json ./entityid2label.json \
+    --class-counts-json ./process_p31_p279/class_counts.json \
+    --extracted-paths-dir ./extracted_paths \
+    --output-dir ./process_paths
+```
 
 This will:
 
@@ -637,6 +647,90 @@ This will:
   - Compute stats (min, max, average, median, mode) for path lengths across all these
     paths and save them in `stats_{K}.json`.
   - Store entity frequencies in `counts_{K}.json` and their labels in `vocab_{K}.json`.
+
+### [`train.py`](./train.py) Script Overview
+
+`train.py` is a comprehensive training script designed to fine-tune a GPT-2 language
+model using a custom dataset derived from Wikidata. It incorporates efficient data
+loading techniques, a custom tokenizer with additional special tokens, and a unique
+class-aware sampling mechanism to ensure balanced training across classes.
+
+#### Key Components
+
+- **Command Line Argument Parsing**  
+  The script begins by parsing various command line arguments to configure the training
+  process. Options include:
+
+  - Maximum sequence length (`--max_length`)
+  - Batch size per device (`--per_device_train_batch_size`)
+  - Number of training epochs (`--num_train_epochs`)
+  - Flags for FP16 training (`--fp16`), CUDA usage (`--no_cuda`), and more.
+  - Sampling mode selection (e.g., `class_aware` vs. `iid`)
+  - Options to load from a checkpoint or start training from scratch
+
+- **Custom Tokenizer Creation**  
+  The script checks for an existing custom tokenizer directory. If not found, it creates
+  a new tokenizer based on the GPT-2 model by adding special tokens such as `<BOS>`,
+  `<EOS>`, `<PAD>`, and `<DOWNWARD>`. This tokenizer is then saved for future runs.
+
+- **Efficient Data Loading with Lazy Dataset**  
+  To handle large datasets efficiently, the script constructs an
+  **EfficientLazyDataset** that:
+
+  - Builds an index of (file index, byte offset) pairs for each non-empty line in TSV
+    files.
+  - Lazily loads and tokenizes each line during training, reducing memory usage.
+  - Supports a `sample_first_batch` option to limit the dataset to the first batch per
+    class.
+
+- **Custom Class-Aware Sampling**  
+  A custom trainer class (`MyTrainer`) extends Hugging Face’s `Trainer` to include
+  class-aware sampling:
+
+  - Computes sample weights based on the frequency of class labels derived from TSV file
+    paths.
+  - Uses a weighted random sampler (or a numpy-based sampler for very large datasets) to
+    ensure balanced representation of classes during training.
+
+- **Model Architecture and Checkpointing**  
+  Depending on the selected model size (`small`, `medium`, or `large`), the script:
+
+  - Configures the model architecture with appropriate embedding dimensions, number of
+    layers, heads, etc.
+  - Either loads a pre-trained model from a checkpoint or initializes a new GPT-2 model
+    from scratch.
+  - Resizes token embeddings to match the vocabulary size of the custom tokenizer and
+    sets special token IDs.
+
+- **Training Setup and Execution**  
+  The training parameters are configured using Hugging Face’s `TrainingArguments`,
+  including:
+
+  - Output directory setup with options for logging and checkpoint saving frequency.
+  - Device configuration (CUDA or CPU based on availability and user preference).
+  - Optional timing of data loading to monitor performance.
+
+  Finally, the training process is initiated via the `trainer.train()` call, with
+  support for resuming from checkpoints if necessary.
+
+#### Example Usage
+
+To run the training script with specific arguments, you can execute the following
+command in your terminal:
+
+```bash
+python train.py \
+--num_workers 8 \
+--max_length 256 \
+--per_device_train_batch_size 64 \
+--logging_steps 100 \
+--save_steps 1000 \
+--save_total_limit 2 \
+--num_classes 10000 \
+--num_train_epochs 1 \
+--sampling_mode class_aware \
+--model_size medium \
+```
 
 ## Contributing
 
