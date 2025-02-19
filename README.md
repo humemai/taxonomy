@@ -732,6 +732,126 @@ python train.py \
 --model_size medium \
 ```
 
+#### Training results
+
+The average number of times `<DOWNWARD>` is in a generated sequence is (1000 random
+runs):
+
+- As for `num_classes=10` model,
+
+  - 18.42 for `temperature=0.5`
+  - 18.70 for `temperature=1.0`
+  - 15.49 for `temperature=1.5`
+
+- As for `num_classes=100` model,
+
+  - 21.88 for `temperature=0.5`
+  - 17.12 for `temperature=1.0`
+  - 14.29 for `temperature=1.5`
+
+- As for `num_classes=1000` model,
+
+  - 21.34 for `temperature=0.5`
+  - 15.80 for `temperature=1.0`
+  - 12.10 for `temperature=1.5`
+
+- for `num_classes=10000` model
+  - 23.76 for `temperature=0.5`
+  - 15.73 for `temperature=1.0`
+  - 11.01 for `temperature=1.5`
+
+### [`build_taxonomy.py`](./build_taxonomy.py) Script Overview
+
+The `build_taxonomy.py` script is designed to generate a hierarchical taxonomy tree
+using a GPT-2 language model. It leverages a custom-trained model and tokenizer along
+with a curated set of phrases to recursively construct a tree where each node represents
+a meaningful phrase or class. This script is especially useful for taxonomy generation
+and knowledge graph analysis.
+
+#### Key Features
+
+- **Custom Model and Tokenizer Loading:**  
+  Loads a GPT-2 model and its corresponding tokenizer from specified checkpoint
+  directories. This allows for a tailored language model that is fine-tuned for the task
+  of taxonomy generation.
+
+- **Phrase Vocabulary and Trie Construction:**  
+  Reads a set of valid phrases from JSON files and builds a trie data structure to
+  efficiently validate and manage token sequences. This ensures that only acceptable
+  phrases are included during the tree expansion process.
+
+- **Hierarchical Tree Construction:**  
+  Begins with a root node (`<BOS>`) and recursively expands the tree by generating
+  candidate child phrases. Each new phrase is validated against the pre-loaded
+  vocabulary and trie, ensuring a structured and non-redundant hierarchy.
+
+- **Parallel Batch Generation and Expansion:**  
+  Implements parallel batch generation of candidate phrases using nucleus (top-p)
+  sampling with temperature control. The recursive tree expansion is parallelized via
+  threading, significantly speeding up the generation process.
+
+- **Stochastic Generation:**  
+  The taxonomy generation process is inherently stochastic, meaning that the output can
+  vary with each run. You can adjust the level of randomness by modifying
+  hyperparameters such as the sampling temperature and top-p threshold. Lower
+  temperature values and stricter top-p filtering make the generation more
+  deterministic, while higher values yield more diverse and creative outputs.
+
+- **Visualization and Export:**  
+  Provides utilities to convert the hierarchical tree into a NetworkX directed graph.
+  The taxonomy can be visualized interactively using PyVis or Dash Cytoscape and is also
+  saved as a JSON file for further analysis.
+
+- **Configurable Parameters:**  
+  Offers extensive command-line options to control various aspects of the generation
+  process such as:
+  - Number of classes to load
+  - Maximum tree depth and width (number of children per node)
+  - Number of generation attempts per node
+  - Top-p sampling threshold and temperature for text generation
+
+#### Example Usage
+
+To run the script with specific parameters, use the following command:
+
+```bash
+python build_taxonomy.py --tokenizer_path "./custom_tokenizer" --num_classes 10
+--force_device cuda --top_p 0.95 --max_depth 32 --max_width 4 --max_attempts 4
+--max_tokens_per_phrase 20 --temperature 1.5
+```
+
+This command will:
+
+- Load a custom tokenizer and GPT-2 model.
+- Build a phrase trie from the top 10 classes.
+- Initiate the tree expansion from the `<BOS>` token.
+- Generate candidate phrases using top-p sampling and temperature-controlled randomness.
+- Expand the tree up to a maximum depth of 32, with each node having at most 4 child
+  nodes.
+- Save the resulting taxonomy as a JSON file and display the hierarchical structure in
+  the console.
+
+#### Under the Hood
+
+The script is organized into several logical sections:
+
+- **Utility Functions:** For loading models, tokenizers, and phrase data.
+- **Trie Construction:** Implements a trie data structure to store and validate
+  tokenized phrases.
+- **Tree Node Management:** Uses a `TreeNode` class to represent each node in the
+  taxonomy, managing parent-child relationships and branch retrieval.
+- **Batch Generation:** Generates candidate phrases in batches, applying nucleus
+  filtering and temperature adjustments to control randomness.
+- **Parallel Tree Expansion:** Expands nodes recursively and concurrently using a thread
+  pool, enabling efficient exploration of possible taxonomy branches.
+- **Visualization:** Converts the taxonomy tree into a NetworkX graph, and provides
+  options for visualizing the graph interactively using PyVis or Dash Cytoscape.
+
+Overall, `build_taxonomy.py` provides a robust framework for generating and visualizing
+hierarchical taxonomies. Its stochastic nature allows for diverse outputs, and by
+fine-tuning the hyperparameters, you can control how deterministic or creative the
+resulting taxonomy will be.
+
 ## Contributing
 
 Contributions are what make the open source community such an amazing place to be learn,

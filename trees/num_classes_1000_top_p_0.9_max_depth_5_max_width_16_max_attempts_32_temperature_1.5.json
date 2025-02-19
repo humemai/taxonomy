@@ -1,0 +1,1621 @@
+{
+    "directed": true,
+    "multigraph": false,
+    "graph": {},
+    "nodes": [
+        {
+            "label": "<BOS>",
+            "id": 125732602542736
+        },
+        {
+            "label": "entity\n(Q35120)",
+            "id": 125732432510544
+        },
+        {
+            "label": "collective entity\n(Q99527517)",
+            "id": 125732432510864
+        },
+        {
+            "label": "group\n(Q19828538)",
+            "id": 125732483256080
+        },
+        {
+            "label": "association\n(Q744778)",
+            "id": 125732432376080
+        },
+        {
+            "label": "research program\n(Q7315176)",
+            "id": 125732432578832
+        },
+        {
+            "label": "convocation\n(Q3765035)",
+            "id": 125732432598352
+        },
+        {
+            "label": "supraorganization\n(Q16873390)",
+            "id": 125732432443856
+        },
+        {
+            "label": "group of works\n(Q17489659)",
+            "id": 125732432510736
+        },
+        {
+            "label": "series of creative works\n(Q7725310)",
+            "id": 125732548574544
+        },
+        {
+            "label": "group of structures or buildings\n(Q18247357)",
+            "id": 125732432717584
+        },
+        {
+            "label": "product category\n(Q63981612)",
+            "id": 125732432579024
+        },
+        {
+            "label": "type of manufactured good\n(Q22811462)",
+            "id": 125732432577232
+        },
+        {
+            "label": "group of geographic locations\n(Q99018632)",
+            "id": 125732432510608
+        },
+        {
+            "label": "group of structures or buildings\n(Q18247357)",
+            "id": 125732548573584
+        },
+        {
+            "label": "system\n(Q58778)",
+            "id": 125732548522960
+        },
+        {
+            "label": "physical system\n(Q1454986)",
+            "id": 125732548563536
+        },
+        {
+            "label": "physical structure\n(Q15710813)",
+            "id": 125732548573904
+        },
+        {
+            "label": "technical system\n(Q994895)",
+            "id": 125732432591824
+        },
+        {
+            "label": "artificial physical structure\n(Q11908691)",
+            "id": 125732432602896
+        },
+        {
+            "label": "social system\n(Q1639378)",
+            "id": 125732548847952
+        },
+        {
+            "label": "organization\n(Q43229)",
+            "id": 125732432601360
+        },
+        {
+            "label": "complex system\n(Q854457)",
+            "id": 125732548560848
+        },
+        {
+            "label": "organization\n(Q43229)",
+            "id": 125732432586448
+        },
+        {
+            "label": "order\n(Q566889)",
+            "id": 125732432371856
+        },
+        {
+            "label": "structure\n(Q517966)",
+            "id": 125732548572944
+        },
+        {
+            "label": "biological structure\n(Q55568967)",
+            "id": 125732432590672
+        },
+        {
+            "label": "infrastructure\n(Q121359)",
+            "id": 125732432723024
+        },
+        {
+            "label": "physical structure\n(Q15710813)",
+            "id": 125732548564048
+        },
+        {
+            "label": "social structure\n(Q211606)",
+            "id": 125732432722768
+        },
+        {
+            "label": "group or class of physical objects\n(Q98119401)",
+            "id": 125732432720016
+        },
+        {
+            "label": "group of physical objects\n(Q61961344)",
+            "id": 125732548561168
+        },
+        {
+            "label": "group of living things\n(Q16334298)",
+            "id": 125732432591696
+        },
+        {
+            "label": "structure\n(Q517966)",
+            "id": 125732432712144
+        },
+        {
+            "label": "social structure\n(Q211606)",
+            "id": 125732548567568
+        },
+        {
+            "label": "institution\n(Q178706)",
+            "id": 125732548574352
+        },
+        {
+            "label": "biological structure\n(Q55568967)",
+            "id": 125732548558928
+        },
+        {
+            "label": "anatomical structure\n(Q4936952)",
+            "id": 125732432602064
+        },
+        {
+            "label": "biomolecular structure\n(Q15712714)",
+            "id": 125732432766864
+        },
+        {
+            "label": "infrastructure\n(Q121359)",
+            "id": 125732432373136
+        },
+        {
+            "label": "transport infrastructure\n(Q376799)",
+            "id": 125732432601616
+        },
+        {
+            "label": "facility\n(Q13226383)",
+            "id": 125732432772368
+        },
+        {
+            "label": "physical structure\n(Q15710813)",
+            "id": 125732432590416
+        },
+        {
+            "label": "artificial physical structure\n(Q11908691)",
+            "id": 125732432593424
+        },
+        {
+            "label": "continuant\n(Q103940464)",
+            "id": 125732432434256
+        },
+        {
+            "label": "independent continuant\n(Q53617489)",
+            "id": 125732432767632
+        },
+        {
+            "label": "subject\n(Q1204348)",
+            "id": 125732432798288
+        },
+        {
+            "label": "agent\n(Q24229398)",
+            "id": 125732432609168
+        },
+        {
+            "label": "material entity\n(Q53617407)",
+            "id": 125732432597136
+        },
+        {
+            "label": "physical object\n(Q223557)",
+            "id": 125732432584208
+        },
+        {
+            "label": "geolocatable entity\n(Q123349660)",
+            "id": 125732432884304
+        },
+        {
+            "label": "agent\n(Q24229398)",
+            "id": 125732432590288
+        },
+        {
+            "label": "collective agent\n(Q131085629)",
+            "id": 125732548571984
+        },
+        {
+            "label": "person or organization\n(Q106559804)",
+            "id": 125732432887120
+        },
+        {
+            "label": "corporate body\n(Q106668099)",
+            "id": 125732432371408
+        },
+        {
+            "label": "object\n(Q216601)",
+            "id": 125732432372880
+        },
+        {
+            "label": "artificial object\n(Q16686448)",
+            "id": 125732432608272
+        },
+        {
+            "label": "artificial geographic entity\n(Q27096235)",
+            "id": 125732432590032
+        },
+        {
+            "label": "facility\n(Q13226383)",
+            "id": 125732432599696
+        },
+        {
+            "label": "artificial geographic object\n(Q35145743)",
+            "id": 125732432765776
+        },
+        {
+            "label": "human-geographic territorial entity\n(Q15642541)",
+            "id": 125732432605904
+        },
+        {
+            "label": "populated place\n(Q123964505)",
+            "id": 125732432796112
+        },
+        {
+            "label": "cultural artifact\n(Q1791627)",
+            "id": 125732548572432
+        },
+        {
+            "label": "work\n(Q42213)",
+            "id": 125732432371792
+        },
+        {
+            "label": "representation\n(Q2905654)",
+            "id": 125732548565968
+        },
+        {
+            "label": "formalization\n(Q5469988)",
+            "id": 125732432886928
+        },
+        {
+            "label": "work\n(Q42213)",
+            "id": 125732548525840
+        },
+        {
+            "label": "sign\n(Q11801374)",
+            "id": 125732432879568
+        },
+        {
+            "label": "intellectual work\n(Q15621286)",
+            "id": 125732432835536
+        },
+        {
+            "label": "architectural structure\n(Q811979)",
+            "id": 125732432763408
+        },
+        {
+            "label": "artificial physical object\n(Q8205328)",
+            "id": 125732432594000
+        },
+        {
+            "label": "group of works\n(Q17489659)",
+            "id": 125732432771984
+        },
+        {
+            "label": "facility\n(Q13226383)",
+            "id": 125732432595280
+        },
+        {
+            "label": "artificial physical object\n(Q8205328)",
+            "id": 125732432792080
+        },
+        {
+            "label": "manufactured good\n(Q1836700)",
+            "id": 125732432606864
+        },
+        {
+            "label": "physical tool\n(Q39546)",
+            "id": 125732432837520
+        },
+        {
+            "label": "facility\n(Q13226383)",
+            "id": 125732432759888
+        },
+        {
+            "label": "artificial physical structure\n(Q11908691)",
+            "id": 125732432765456
+        },
+        {
+            "label": "spatio-temporal entity\n(Q58415929)",
+            "id": 125732432510928
+        },
+        {
+            "label": "occurrent\n(Q67518978)",
+            "id": 125732432886672
+        },
+        {
+            "label": "phenomenon\n(Q483247)",
+            "id": 125732432712976
+        },
+        {
+            "label": "occurrence\n(Q1190554)",
+            "id": 125732432876368
+        },
+        {
+            "label": "spacetime region\n(Q23956024)",
+            "id": 125732432771216
+        },
+        {
+            "label": "region of space\n(Q26713767)",
+            "id": 125732432885840
+        },
+        {
+            "label": "spatial object\n(Q25404640)",
+            "id": 125732432805776
+        },
+        {
+            "label": "region of space\n(Q26713767)",
+            "id": 125732432877712
+        },
+        {
+            "label": "system\n(Q58778)",
+            "id": 125732432589776
+        },
+        {
+            "label": "physical system\n(Q1454986)",
+            "id": 125732432716304
+        },
+        {
+            "label": "physical structure\n(Q15710813)",
+            "id": 125732432719312
+        },
+        {
+            "label": "technical system\n(Q994895)",
+            "id": 125732432589648
+        },
+        {
+            "label": "artificial physical structure\n(Q11908691)",
+            "id": 125732432872208
+        },
+        {
+            "label": "complex system\n(Q854457)",
+            "id": 125732432760976
+        },
+        {
+            "label": "organization\n(Q43229)",
+            "id": 125732432834576
+        },
+        {
+            "label": "social system\n(Q1639378)",
+            "id": 125732432879312
+        },
+        {
+            "label": "organization\n(Q43229)",
+            "id": 125732432838608
+        },
+        {
+            "label": "group or class of physical objects\n(Q98119401)",
+            "id": 125732432371472
+        },
+        {
+            "label": "group or class of organisms\n(Q21871294)",
+            "id": 125732432718288
+        },
+        {
+            "label": "taxon\n(Q16521)",
+            "id": 125732548562000
+        },
+        {
+            "label": "group or class of chemical entities\n(Q72070508)",
+            "id": 125732432718416
+        },
+        {
+            "label": "group or class of chemical substances\n(Q17339814)",
+            "id": 125732548524240
+        },
+        {
+            "label": "structural class of chemical entities\n(Q47154513)",
+            "id": 125732421439568
+        },
+        {
+            "label": "group of physical objects\n(Q61961344)",
+            "id": 125732432597712
+        },
+        {
+            "label": "group of living things\n(Q16334298)",
+            "id": 125732421378384
+        },
+        {
+            "label": "concrete object\n(Q4406616)",
+            "id": 125732548523792
+        },
+        {
+            "label": "physical system\n(Q1454986)",
+            "id": 125732432830672
+        },
+        {
+            "label": "physical structure\n(Q15710813)",
+            "id": 125732432798352
+        },
+        {
+            "label": "geographical feature\n(Q618123)",
+            "id": 125732421382864
+        },
+        {
+            "label": "natural geographic object\n(Q35145263)",
+            "id": 125732421379408
+        },
+        {
+            "label": "geographic region\n(Q82794)",
+            "id": 125732421450512
+        },
+        {
+            "label": "fixed construction\n(Q811430)",
+            "id": 125732421450448
+        },
+        {
+            "label": "artificial geographic object\n(Q35145743)",
+            "id": 125732421448272
+        },
+        {
+            "label": "landform\n(Q271669)",
+            "id": 125732421449552
+        },
+        {
+            "label": "religious site\n(Q105889895)",
+            "id": 125732421449808
+        },
+        {
+            "label": "place\n(Q98929991)",
+            "id": 125732421451280
+        },
+        {
+            "label": "physico-geographical object\n(Q20719696)",
+            "id": 125732421439376
+        },
+        {
+            "label": "geolocatable entity\n(Q123349660)",
+            "id": 125732432707792
+        },
+        {
+            "label": "geographic entity\n(Q27096213)",
+            "id": 125732421380624
+        },
+        {
+            "label": "physical anatomical entity\n(Q66394244)",
+            "id": 125732432793104
+        },
+        {
+            "label": "organism\n(Q7239)",
+            "id": 125732432607440
+        },
+        {
+            "label": "material anatomical entity\n(Q27043948)",
+            "id": 125732421451472
+        },
+        {
+            "label": "physical object\n(Q223557)",
+            "id": 125732432604560
+        },
+        {
+            "label": "artificial physical object\n(Q8205328)",
+            "id": 125732548563792
+        },
+        {
+            "label": "organism\n(Q7239)",
+            "id": 125732421449168
+        },
+        {
+            "label": "perceptible physical object\n(Q337060)",
+            "id": 125732432720336
+        },
+        {
+            "label": "natural physical object\n(Q16686022)",
+            "id": 125732432597968
+        },
+        {
+            "label": "space object\n(Q4235019)",
+            "id": 125732421450128
+        },
+        {
+            "label": "particle\n(Q1621273)",
+            "id": 125732421448400
+        },
+        {
+            "label": "scientific object\n(Q30060700)",
+            "id": 125732432510480
+        },
+        {
+            "label": "mathematical object\n(Q246672)",
+            "id": 125732548571600
+        },
+        {
+            "label": "mathematical structure\n(Q748349)",
+            "id": 125732432589136
+        },
+        {
+            "label": "tensor\n(Q188524)",
+            "id": 125732421493008
+        },
+        {
+            "label": "value\n(Q194112)",
+            "id": 125732432770704
+        },
+        {
+            "label": "class\n(Q18204)",
+            "id": 125732421497552
+        },
+        {
+            "label": "generalized function\n(Q846537)",
+            "id": 125732432826128
+        },
+        {
+            "label": "partial function\n(Q1756942)",
+            "id": 125732421496400
+        },
+        {
+            "label": "multiset\n(Q864377)",
+            "id": 125732421500048
+        },
+        {
+            "label": "heritage\n(Q2434238)",
+            "id": 125732548524880
+        },
+        {
+            "label": "cultural heritage\n(Q210272)",
+            "id": 125732432603088
+        },
+        {
+            "label": "cultural artifact\n(Q1791627)",
+            "id": 125732548522512
+        },
+        {
+            "label": "abstract entity\n(Q7048977)",
+            "id": 125732548522896
+        },
+        {
+            "label": "system\n(Q58778)",
+            "id": 125732432834768
+        },
+        {
+            "label": "complex system\n(Q854457)",
+            "id": 125732432592720
+        },
+        {
+            "label": "organization\n(Q43229)",
+            "id": 125732432795472
+        },
+        {
+            "label": "physical system\n(Q1454986)",
+            "id": 125732421490832
+        },
+        {
+            "label": "physical structure\n(Q15710813)",
+            "id": 125732432377232
+        },
+        {
+            "label": "technical system\n(Q994895)",
+            "id": 125732548569744
+        },
+        {
+            "label": "artificial physical structure\n(Q11908691)",
+            "id": 125732432825488
+        },
+        {
+            "label": "social system\n(Q1639378)",
+            "id": 125732548525968
+        },
+        {
+            "label": "organization\n(Q43229)",
+            "id": 125732421449232
+        },
+        {
+            "label": "property\n(Q2123335)",
+            "id": 125732548523280
+        },
+        {
+            "label": "quality\n(Q1207505)",
+            "id": 125732432763984
+        },
+        {
+            "label": "aptitude\n(Q1347367)",
+            "id": 125732432714448
+        },
+        {
+            "label": "measure\n(Q39875001)",
+            "id": 125732432837840
+        },
+        {
+            "label": "observable\n(Q845789)",
+            "id": 125732432768912
+        },
+        {
+            "label": "relation\n(Q930933)",
+            "id": 125732421445712
+        },
+        {
+            "label": "relation (mathematics)\n(Q107223533)",
+            "id": 125732432590864
+        },
+        {
+            "label": "value\n(Q194112)",
+            "id": 125732421479568
+        },
+        {
+            "label": "representation\n(Q2905654)",
+            "id": 125732421484176
+        },
+        {
+            "label": "physical location\n(Q17334923)",
+            "id": 125732432770576
+        },
+        {
+            "label": "geographical feature\n(Q618123)",
+            "id": 125732421488208
+        },
+        {
+            "label": "geographic location\n(Q2221906)",
+            "id": 125732421480912
+        },
+        {
+            "label": "quantity\n(Q309314)",
+            "id": 125732432722384
+        },
+        {
+            "label": "individual quantity\n(Q71550118)",
+            "id": 125732432881808
+        },
+        {
+            "label": "state\n(Q106458883)",
+            "id": 125732432796368
+        },
+        {
+            "label": "consensus\n(Q2994424)",
+            "id": 125732432758608
+        },
+        {
+            "label": "order\n(Q566889)",
+            "id": 125732421483856
+        },
+        {
+            "label": "abstract structure\n(Q4833865)",
+            "id": 125732548569360
+        },
+        {
+            "label": "mathematical structure\n(Q748349)",
+            "id": 125732432590160
+        },
+        {
+            "label": "class\n(Q18204)",
+            "id": 125732421382736
+        },
+        {
+            "label": "mathematical object\n(Q246672)",
+            "id": 125732548568912
+        },
+        {
+            "label": "class\n(Q18204)",
+            "id": 125732421445328
+        },
+        {
+            "label": "set\n(Q28813620)",
+            "id": 125732421483920
+        },
+        {
+            "label": "mathematical structure\n(Q748349)",
+            "id": 125732432604240
+        },
+        {
+            "label": "class\n(Q18204)",
+            "id": 125732421499088
+        },
+        {
+            "label": "geometric object\n(Q123410745)",
+            "id": 125732421450704
+        },
+        {
+            "label": "spatial object\n(Q25404640)",
+            "id": 125732432600912
+        },
+        {
+            "label": "value\n(Q194112)",
+            "id": 125732548525264
+        },
+        {
+            "label": "quantity\n(Q309314)",
+            "id": 125732421384080
+        },
+        {
+            "label": "multiset\n(Q864377)",
+            "id": 125732432769232
+        },
+        {
+            "label": "set\n(Q28813620)",
+            "id": 125732421494288
+        },
+        {
+            "label": "tensor\n(Q188524)",
+            "id": 125732432707920
+        },
+        {
+            "label": "antisymmetric tensor\n(Q1325769)",
+            "id": 125732421497040
+        },
+        {
+            "label": "symmetric tensor\n(Q2204117)",
+            "id": 125732421476048
+        },
+        {
+            "label": "generalized function\n(Q846537)",
+            "id": 125732432770064
+        },
+        {
+            "label": "function\n(Q15810910)",
+            "id": 125732432605840
+        },
+        {
+            "label": "class\n(Q18204)",
+            "id": 125732421491472
+        },
+        {
+            "label": "first-order class\n(Q104086571)",
+            "id": 125732432801680
+        },
+        {
+            "label": "class of disease\n(Q112193867)",
+            "id": 125732432884368
+        },
+        {
+            "label": "type of object\n(Q96251598)",
+            "id": 125732421599120
+        },
+        {
+            "label": "group or class of organisms\n(Q21871294)",
+            "id": 125732421435600
+        },
+        {
+            "label": "taxon\n(Q16521)",
+            "id": 125732421594320
+        },
+        {
+            "label": "group or class of chemical entities\n(Q72070508)",
+            "id": 125732421487376
+        },
+        {
+            "label": "group or class of chemical substances\n(Q17339814)",
+            "id": 125732421635600
+        },
+        {
+            "label": "structural class of chemical entities\n(Q47154513)",
+            "id": 125732421583056
+        },
+        {
+            "label": "sequence\n(Q913721)",
+            "id": 125732421595728
+        },
+        {
+            "label": "process\n(Q619671)",
+            "id": 125732432722128
+        },
+        {
+            "label": "type\n(Q21146257)",
+            "id": 125732432801040
+        },
+        {
+            "label": "type of manufactured good\n(Q22811462)",
+            "id": 125732432887056
+        },
+        {
+            "label": "knowledge type\n(Q110403031)",
+            "id": 125732421596240
+        },
+        {
+            "label": "type of object\n(Q96251598)",
+            "id": 125732432887504
+        },
+        {
+            "label": "fixed-order class\n(Q23959932)",
+            "id": 125732432601232
+        },
+        {
+            "label": "first-order class\n(Q104086571)",
+            "id": 125732421482192
+        }
+    ],
+    "edges": [
+        {
+            "source": 125732602542736,
+            "target": 125732432510544
+        },
+        {
+            "source": 125732432510544,
+            "target": 125732432510864
+        },
+        {
+            "source": 125732432510544,
+            "target": 125732432434256
+        },
+        {
+            "source": 125732432510544,
+            "target": 125732432372880
+        },
+        {
+            "source": 125732432510544,
+            "target": 125732548522896
+        },
+        {
+            "source": 125732432510864,
+            "target": 125732483256080
+        },
+        {
+            "source": 125732432510864,
+            "target": 125732548522960
+        },
+        {
+            "source": 125732432510864,
+            "target": 125732432371856
+        },
+        {
+            "source": 125732432510864,
+            "target": 125732432720016
+        },
+        {
+            "source": 125732432510864,
+            "target": 125732432712144
+        },
+        {
+            "source": 125732483256080,
+            "target": 125732432376080
+        },
+        {
+            "source": 125732483256080,
+            "target": 125732432510736
+        },
+        {
+            "source": 125732483256080,
+            "target": 125732432579024
+        },
+        {
+            "source": 125732483256080,
+            "target": 125732432510608
+        },
+        {
+            "source": 125732432376080,
+            "target": 125732432578832
+        },
+        {
+            "source": 125732432376080,
+            "target": 125732432598352
+        },
+        {
+            "source": 125732432376080,
+            "target": 125732432443856
+        },
+        {
+            "source": 125732432510736,
+            "target": 125732548574544
+        },
+        {
+            "source": 125732432510736,
+            "target": 125732432717584
+        },
+        {
+            "source": 125732432579024,
+            "target": 125732432577232
+        },
+        {
+            "source": 125732432510608,
+            "target": 125732548573584
+        },
+        {
+            "source": 125732548522960,
+            "target": 125732548563536
+        },
+        {
+            "source": 125732548522960,
+            "target": 125732432591824
+        },
+        {
+            "source": 125732548522960,
+            "target": 125732548847952
+        },
+        {
+            "source": 125732548522960,
+            "target": 125732548560848
+        },
+        {
+            "source": 125732548563536,
+            "target": 125732548573904
+        },
+        {
+            "source": 125732432591824,
+            "target": 125732432602896
+        },
+        {
+            "source": 125732548847952,
+            "target": 125732432601360
+        },
+        {
+            "source": 125732548560848,
+            "target": 125732432586448
+        },
+        {
+            "source": 125732432371856,
+            "target": 125732548572944
+        },
+        {
+            "source": 125732548572944,
+            "target": 125732432590672
+        },
+        {
+            "source": 125732548572944,
+            "target": 125732432723024
+        },
+        {
+            "source": 125732548572944,
+            "target": 125732548564048
+        },
+        {
+            "source": 125732548572944,
+            "target": 125732432722768
+        },
+        {
+            "source": 125732432720016,
+            "target": 125732548561168
+        },
+        {
+            "source": 125732548561168,
+            "target": 125732432591696
+        },
+        {
+            "source": 125732432712144,
+            "target": 125732548567568
+        },
+        {
+            "source": 125732432712144,
+            "target": 125732548558928
+        },
+        {
+            "source": 125732432712144,
+            "target": 125732432373136
+        },
+        {
+            "source": 125732432712144,
+            "target": 125732432590416
+        },
+        {
+            "source": 125732548567568,
+            "target": 125732548574352
+        },
+        {
+            "source": 125732548558928,
+            "target": 125732432602064
+        },
+        {
+            "source": 125732548558928,
+            "target": 125732432766864
+        },
+        {
+            "source": 125732432373136,
+            "target": 125732432601616
+        },
+        {
+            "source": 125732432373136,
+            "target": 125732432772368
+        },
+        {
+            "source": 125732432590416,
+            "target": 125732432593424
+        },
+        {
+            "source": 125732432434256,
+            "target": 125732432767632
+        },
+        {
+            "source": 125732432767632,
+            "target": 125732432798288
+        },
+        {
+            "source": 125732432767632,
+            "target": 125732432597136
+        },
+        {
+            "source": 125732432767632,
+            "target": 125732432590288
+        },
+        {
+            "source": 125732432798288,
+            "target": 125732432609168
+        },
+        {
+            "source": 125732432597136,
+            "target": 125732432584208
+        },
+        {
+            "source": 125732432597136,
+            "target": 125732432884304
+        },
+        {
+            "source": 125732432590288,
+            "target": 125732548571984
+        },
+        {
+            "source": 125732432590288,
+            "target": 125732432887120
+        },
+        {
+            "source": 125732432590288,
+            "target": 125732432371408
+        },
+        {
+            "source": 125732432372880,
+            "target": 125732432608272
+        },
+        {
+            "source": 125732432372880,
+            "target": 125732432510928
+        },
+        {
+            "source": 125732432372880,
+            "target": 125732432589776
+        },
+        {
+            "source": 125732432372880,
+            "target": 125732432371472
+        },
+        {
+            "source": 125732432372880,
+            "target": 125732548523792
+        },
+        {
+            "source": 125732432372880,
+            "target": 125732432510480
+        },
+        {
+            "source": 125732432372880,
+            "target": 125732548524880
+        },
+        {
+            "source": 125732432608272,
+            "target": 125732432590032
+        },
+        {
+            "source": 125732432608272,
+            "target": 125732548572432
+        },
+        {
+            "source": 125732432608272,
+            "target": 125732548565968
+        },
+        {
+            "source": 125732432608272,
+            "target": 125732548525840
+        },
+        {
+            "source": 125732432608272,
+            "target": 125732432792080
+        },
+        {
+            "source": 125732432590032,
+            "target": 125732432599696
+        },
+        {
+            "source": 125732432590032,
+            "target": 125732432765776
+        },
+        {
+            "source": 125732432590032,
+            "target": 125732432605904
+        },
+        {
+            "source": 125732432590032,
+            "target": 125732432796112
+        },
+        {
+            "source": 125732548572432,
+            "target": 125732432371792
+        },
+        {
+            "source": 125732548565968,
+            "target": 125732432886928
+        },
+        {
+            "source": 125732548525840,
+            "target": 125732432879568
+        },
+        {
+            "source": 125732548525840,
+            "target": 125732432835536
+        },
+        {
+            "source": 125732548525840,
+            "target": 125732432763408
+        },
+        {
+            "source": 125732548525840,
+            "target": 125732432594000
+        },
+        {
+            "source": 125732548525840,
+            "target": 125732432771984
+        },
+        {
+            "source": 125732548525840,
+            "target": 125732432595280
+        },
+        {
+            "source": 125732432792080,
+            "target": 125732432606864
+        },
+        {
+            "source": 125732432792080,
+            "target": 125732432837520
+        },
+        {
+            "source": 125732432792080,
+            "target": 125732432759888
+        },
+        {
+            "source": 125732432792080,
+            "target": 125732432765456
+        },
+        {
+            "source": 125732432510928,
+            "target": 125732432886672
+        },
+        {
+            "source": 125732432510928,
+            "target": 125732432771216
+        },
+        {
+            "source": 125732432510928,
+            "target": 125732432805776
+        },
+        {
+            "source": 125732432886672,
+            "target": 125732432712976
+        },
+        {
+            "source": 125732432886672,
+            "target": 125732432876368
+        },
+        {
+            "source": 125732432771216,
+            "target": 125732432885840
+        },
+        {
+            "source": 125732432805776,
+            "target": 125732432877712
+        },
+        {
+            "source": 125732432589776,
+            "target": 125732432716304
+        },
+        {
+            "source": 125732432589776,
+            "target": 125732432589648
+        },
+        {
+            "source": 125732432589776,
+            "target": 125732432760976
+        },
+        {
+            "source": 125732432589776,
+            "target": 125732432879312
+        },
+        {
+            "source": 125732432716304,
+            "target": 125732432719312
+        },
+        {
+            "source": 125732432589648,
+            "target": 125732432872208
+        },
+        {
+            "source": 125732432760976,
+            "target": 125732432834576
+        },
+        {
+            "source": 125732432879312,
+            "target": 125732432838608
+        },
+        {
+            "source": 125732432371472,
+            "target": 125732432718288
+        },
+        {
+            "source": 125732432371472,
+            "target": 125732432718416
+        },
+        {
+            "source": 125732432371472,
+            "target": 125732432597712
+        },
+        {
+            "source": 125732432718288,
+            "target": 125732548562000
+        },
+        {
+            "source": 125732432718416,
+            "target": 125732548524240
+        },
+        {
+            "source": 125732432718416,
+            "target": 125732421439568
+        },
+        {
+            "source": 125732432597712,
+            "target": 125732421378384
+        },
+        {
+            "source": 125732548523792,
+            "target": 125732432830672
+        },
+        {
+            "source": 125732548523792,
+            "target": 125732421382864
+        },
+        {
+            "source": 125732548523792,
+            "target": 125732432707792
+        },
+        {
+            "source": 125732548523792,
+            "target": 125732432793104
+        },
+        {
+            "source": 125732548523792,
+            "target": 125732432604560
+        },
+        {
+            "source": 125732432830672,
+            "target": 125732432798352
+        },
+        {
+            "source": 125732421382864,
+            "target": 125732421379408
+        },
+        {
+            "source": 125732421382864,
+            "target": 125732421450512
+        },
+        {
+            "source": 125732421382864,
+            "target": 125732421450448
+        },
+        {
+            "source": 125732421382864,
+            "target": 125732421448272
+        },
+        {
+            "source": 125732421382864,
+            "target": 125732421449552
+        },
+        {
+            "source": 125732421382864,
+            "target": 125732421449808
+        },
+        {
+            "source": 125732421382864,
+            "target": 125732421451280
+        },
+        {
+            "source": 125732421382864,
+            "target": 125732421439376
+        },
+        {
+            "source": 125732432707792,
+            "target": 125732421380624
+        },
+        {
+            "source": 125732432793104,
+            "target": 125732432607440
+        },
+        {
+            "source": 125732432793104,
+            "target": 125732421451472
+        },
+        {
+            "source": 125732432604560,
+            "target": 125732548563792
+        },
+        {
+            "source": 125732432604560,
+            "target": 125732421449168
+        },
+        {
+            "source": 125732432604560,
+            "target": 125732432720336
+        },
+        {
+            "source": 125732432604560,
+            "target": 125732432597968
+        },
+        {
+            "source": 125732432604560,
+            "target": 125732421450128
+        },
+        {
+            "source": 125732432604560,
+            "target": 125732421448400
+        },
+        {
+            "source": 125732432510480,
+            "target": 125732548571600
+        },
+        {
+            "source": 125732548571600,
+            "target": 125732432589136
+        },
+        {
+            "source": 125732548571600,
+            "target": 125732421493008
+        },
+        {
+            "source": 125732548571600,
+            "target": 125732432770704
+        },
+        {
+            "source": 125732548571600,
+            "target": 125732421497552
+        },
+        {
+            "source": 125732548571600,
+            "target": 125732432826128
+        },
+        {
+            "source": 125732548571600,
+            "target": 125732421496400
+        },
+        {
+            "source": 125732548571600,
+            "target": 125732421500048
+        },
+        {
+            "source": 125732548524880,
+            "target": 125732432603088
+        },
+        {
+            "source": 125732432603088,
+            "target": 125732548522512
+        },
+        {
+            "source": 125732548522896,
+            "target": 125732432834768
+        },
+        {
+            "source": 125732548522896,
+            "target": 125732548523280
+        },
+        {
+            "source": 125732548522896,
+            "target": 125732548569360
+        },
+        {
+            "source": 125732548522896,
+            "target": 125732548568912
+        },
+        {
+            "source": 125732548522896,
+            "target": 125732421491472
+        },
+        {
+            "source": 125732432834768,
+            "target": 125732432592720
+        },
+        {
+            "source": 125732432834768,
+            "target": 125732421490832
+        },
+        {
+            "source": 125732432834768,
+            "target": 125732548569744
+        },
+        {
+            "source": 125732432834768,
+            "target": 125732548525968
+        },
+        {
+            "source": 125732432592720,
+            "target": 125732432795472
+        },
+        {
+            "source": 125732421490832,
+            "target": 125732432377232
+        },
+        {
+            "source": 125732548569744,
+            "target": 125732432825488
+        },
+        {
+            "source": 125732548525968,
+            "target": 125732421449232
+        },
+        {
+            "source": 125732548523280,
+            "target": 125732432763984
+        },
+        {
+            "source": 125732548523280,
+            "target": 125732421445712
+        },
+        {
+            "source": 125732548523280,
+            "target": 125732432770576
+        },
+        {
+            "source": 125732548523280,
+            "target": 125732432722384
+        },
+        {
+            "source": 125732548523280,
+            "target": 125732432796368
+        },
+        {
+            "source": 125732432763984,
+            "target": 125732432714448
+        },
+        {
+            "source": 125732432763984,
+            "target": 125732432837840
+        },
+        {
+            "source": 125732432763984,
+            "target": 125732432768912
+        },
+        {
+            "source": 125732421445712,
+            "target": 125732432590864
+        },
+        {
+            "source": 125732421445712,
+            "target": 125732421479568
+        },
+        {
+            "source": 125732421445712,
+            "target": 125732421484176
+        },
+        {
+            "source": 125732432770576,
+            "target": 125732421488208
+        },
+        {
+            "source": 125732432770576,
+            "target": 125732421480912
+        },
+        {
+            "source": 125732432722384,
+            "target": 125732432881808
+        },
+        {
+            "source": 125732432796368,
+            "target": 125732432758608
+        },
+        {
+            "source": 125732432796368,
+            "target": 125732421483856
+        },
+        {
+            "source": 125732548569360,
+            "target": 125732432590160
+        },
+        {
+            "source": 125732432590160,
+            "target": 125732421382736
+        },
+        {
+            "source": 125732548568912,
+            "target": 125732421445328
+        },
+        {
+            "source": 125732548568912,
+            "target": 125732432604240
+        },
+        {
+            "source": 125732548568912,
+            "target": 125732421450704
+        },
+        {
+            "source": 125732548568912,
+            "target": 125732548525264
+        },
+        {
+            "source": 125732548568912,
+            "target": 125732432769232
+        },
+        {
+            "source": 125732548568912,
+            "target": 125732432707920
+        },
+        {
+            "source": 125732548568912,
+            "target": 125732432770064
+        },
+        {
+            "source": 125732421445328,
+            "target": 125732421483920
+        },
+        {
+            "source": 125732432604240,
+            "target": 125732421499088
+        },
+        {
+            "source": 125732421450704,
+            "target": 125732432600912
+        },
+        {
+            "source": 125732548525264,
+            "target": 125732421384080
+        },
+        {
+            "source": 125732432769232,
+            "target": 125732421494288
+        },
+        {
+            "source": 125732432707920,
+            "target": 125732421497040
+        },
+        {
+            "source": 125732432707920,
+            "target": 125732421476048
+        },
+        {
+            "source": 125732432770064,
+            "target": 125732432605840
+        },
+        {
+            "source": 125732421491472,
+            "target": 125732432801680
+        },
+        {
+            "source": 125732421491472,
+            "target": 125732421435600
+        },
+        {
+            "source": 125732421491472,
+            "target": 125732421487376
+        },
+        {
+            "source": 125732421491472,
+            "target": 125732421595728
+        },
+        {
+            "source": 125732421491472,
+            "target": 125732432801040
+        },
+        {
+            "source": 125732421491472,
+            "target": 125732432601232
+        },
+        {
+            "source": 125732432801680,
+            "target": 125732432884368
+        },
+        {
+            "source": 125732432801680,
+            "target": 125732421599120
+        },
+        {
+            "source": 125732421435600,
+            "target": 125732421594320
+        },
+        {
+            "source": 125732421487376,
+            "target": 125732421635600
+        },
+        {
+            "source": 125732421487376,
+            "target": 125732421583056
+        },
+        {
+            "source": 125732421595728,
+            "target": 125732432722128
+        },
+        {
+            "source": 125732432801040,
+            "target": 125732432887056
+        },
+        {
+            "source": 125732432801040,
+            "target": 125732421596240
+        },
+        {
+            "source": 125732432801040,
+            "target": 125732432887504
+        },
+        {
+            "source": 125732432601232,
+            "target": 125732421482192
+        }
+    ]
+}
