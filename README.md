@@ -137,8 +137,11 @@ provided Python script `run_p279.py`. This script processes the raw JSON dump, e
    triples:
 
    ```bash
-   python run_p279.py --dump_file latest-all.json.gz --p279_dir P279
-   --num_entities_per_batch 50000 --dummy
+   python run_p279.py \
+   --dump_file latest-all.json.gz \
+   --p279_dir P279 \
+   --num_entities_per_batch 50000 \
+   --dummy
    ```
 
    - `--dump_file`: Path to the Wikidata JSON dump (`latest-all.json.gz`).
@@ -292,13 +295,17 @@ from the Wikidata JSON dump and saves them as a JSON file.
 
 1. Run the script:
 
-   python run_entityid2label.py --dump_file latest-all.json.gz --output_file
-   entityid2label.json --dummy
+```bash
+ python run_entityid2label.py \
+ --dump_file latest-all.json.gz \
+ --output_file entityid2label.json \
+ --dummy
+```
 
-   - `--dump_file`: Path to the Wikidata JSON dump (`latest-all.json.gz`).
-   - `--output_file`: Path to save the `entityid2label.json` file (default:
-     `entityid2label.json`).
-   - `--dummy`: Optional flag to process only the first 10,000 entities for testing.
+- `--dump_file`: Path to the Wikidata JSON dump (`latest-all.json.gz`).
+- `--output_file`: Path to save the `entityid2label.json` file (default:
+  `entityid2label.json`).
+- `--dummy`: Optional flag to process only the first 10,000 entities for testing.
 
 2. Output Structure: The extracted labels are saved as a JSON file
    (`entityid2label.json`) with the following format:
@@ -328,8 +335,12 @@ Wikidata JSON dump and saves the results as a JSON file.
 
 1. Run the script:
 
-   python run_property_stats.py --dump_file latest-all.json.gz --output_file
-   property_stats.json --dummy
+   ```bash
+   python run_property_stats.py \
+   --dump_file latest-all.json.gz \
+   --output_file property_stats.json \
+   --dummy
+   ```
 
    - `--dump_file`: Path to the Wikidata JSON dump (`latest-all.json.gz`).
    - `--output_file`: Path to save the `property_stats.json` file (default:
@@ -478,19 +489,25 @@ and logs essential statistics for each class. The output consists of separate TS
 Run the script via the command line with required and optional arguments:
 
 ```bash
-python get_paths.py --num_classes 20 --max_depth 5 --max_paths_per_class 1000\
---allowed_threshold 0.3 --batch_size 50000 --direction both\
+python get_paths.py \
+--num_classes 20 \
+--max_depth 5 \
+--max_paths_per_class 1000 \
+--allowed_threshold 0.3 \
+--batch_size 50000 \
+--direction both \
 --output_dir ./extracted_paths
 ```
 
-- `--num-classes`: Number of top classes to process (default: 10)
+- `--num_classes`: Number of top classes to process (default: 10)
 - `--max-depth`: Maximum depth for path generation (default: None)
-- `--max-paths-per-class`: Maximum number of paths per class for each direction
+- `--max_paths_per_class`: Maximum number of paths per class for each direction
   (default: None)
 - `--batch-size`: Number of combined paths per batch TSV file (default: 50000)
 - `--direction`: Direction of paths to include (`upward`, `downward`, or `both`)
-- `--allowed-threshold`: Minimum fraction of allowed nodes in a path
-- `--output-dir`: Directory to save output files **(required)**
+- `--allowed_threshold`: Minimum fraction of allowed nodes (popular nodes) in a path.
+  Higher this number is, the lower number of paths will be generated (default: 0.3)
+- `--output_dir`: Directory to save output files **(required)**
 
 #### Core Components
 
@@ -575,7 +592,11 @@ pip install tqdm psutil
 What I used was
 
 ```bash
-python get_paths.py --num-classes 10000 --allowed-threshold 0.25 --direction both
+python get_paths.py \
+--num_classes 10000 \
+--allowed_threshold 0.3 \
+--direction both \
+--output_dir
 ```
 
 #### Notes
@@ -630,11 +651,11 @@ include:
 
 ```bash
 python process_paths.py \
-    --num-classes 10 100 1000 10000 \
-    --entityid2label-json ./entityid2label.json \
-    --class-counts-json ./process_p31_p279/class_counts.json \
-    --extracted-paths-dir ./extracted_paths \
-    --output-dir ./process_paths
+--num_classes 10 100 1000 10000 \
+--entityid2label_json ./entityid2label.json \
+--class_counts_json ./process_p31_p279/class_counts.json \
+--extracted_paths_dir ./extracted_paths/allowed_threshold_0.3/ \
+--output_dir ./process_paths/allowed_threshold_0.3/
 ```
 
 This will:
@@ -663,9 +684,10 @@ class-aware sampling mechanism to ensure balanced training across classes.
 
   - Maximum sequence length (`--max_length`)
   - Batch size per device (`--per_device_train_batch_size`)
-  - Number of training epochs (`--num_train_epochs`)
   - Flags for FP16 training (`--fp16`), CUDA usage (`--no_cuda`), and more.
   - Sampling mode selection (e.g., `class_aware` vs. `iid`)
+  - loss_threshold (`--loss_threshold` so that it stops training when the loss is less
+    than this threshold)
   - Options to load from a checkpoint or start training from scratch
 
 - **Custom Tokenizer Creation**  
@@ -693,7 +715,8 @@ class-aware sampling mechanism to ensure balanced training across classes.
     ensure balanced representation of classes during training.
 
 - **Model Architecture and Checkpointing**  
-  Depending on the selected model size (`small`, `medium`, or `large`), the script:
+  Depending on the selected model size (`tiny`, `small`, `medium`, or `large`), the
+  script:
 
   - Configures the model architecture with appropriate embedding dimensions, number of
     layers, heads, etc.
@@ -722,43 +745,17 @@ command in your terminal:
 python train.py \
 --num_workers 8 \
 --max_length 256 \
+--allowed_threshold 0.3 \
 --per_device_train_batch_size 64 \
---logging_steps 100 \
---save_steps 1000 \
+--logging_steps 50 \
+--save_steps 250 \
+--max_steps 50000 \
+--loss_threshold 0.1 \
 --save_total_limit 2 \
 --num_classes 10000 \
---num_train_epochs 1 \
 --sampling_mode class_aware \
---model_size medium \
+--model_size tiny
 ```
-
-#### Training results
-
-The average number of times `<DOWNWARD>` is in a generated sequence is (1000 random
-runs):
-
-- As for `num_classes=10` model,
-
-  - 18.42 for `temperature=0.5`
-  - 18.70 for `temperature=1.0`
-  - 15.49 for `temperature=1.5`
-
-- As for `num_classes=100` model,
-
-  - 21.88 for `temperature=0.5`
-  - 17.12 for `temperature=1.0`
-  - 14.29 for `temperature=1.5`
-
-- As for `num_classes=1000` model,
-
-  - 21.34 for `temperature=0.5`
-  - 15.80 for `temperature=1.0`
-  - 12.10 for `temperature=1.5`
-
-- for `num_classes=10000` model
-  - 23.76 for `temperature=0.5`
-  - 15.73 for `temperature=1.0`
-  - 11.01 for `temperature=1.5`
 
 ### [`build_taxonomy.py`](./build_taxonomy.py) Script Overview
 
@@ -815,9 +812,19 @@ and knowledge graph analysis.
 To run the script with specific parameters, use the following command:
 
 ```bash
-python build_taxonomy.py --tokenizer_path "./custom_tokenizer" --num_classes 10
---force_device cuda --top_p 0.95 --max_depth 32 --max_width 4 --max_attempts 4
---max_tokens_per_phrase 20 --temperature 1.5
+python build_taxonomy.py \
+--tokenizer_path "./custom_tokenizer" \
+--num_classes 10 \
+--force_device cuda \
+--top_p 0.9 \
+--max_depth 4 \
+--max_width 16 \
+--max_tokens_per_phrase 20 \
+--temperature 0.5 \
+--allowed_threshold 0.7 \
+--loss_threshold 0.1 \
+--model_size tiny \
+--width_decay_factor 0.8
 ```
 
 This command will:
@@ -851,6 +858,56 @@ Overall, `build_taxonomy.py` provides a robust framework for generating and visu
 hierarchical taxonomies. Its stochastic nature allows for diverse outputs, and by
 fine-tuning the hyperparameters, you can control how deterministic or creative the
 resulting taxonomy will be.
+
+### [`run_visualization_server.py`](./run_visualization_server.py) Script Overview
+
+This script loads a taxonomy graph from a JSON file in node-link format and visualizes
+it using Dash Cytoscape. The graph is rendered in a web browser using the dagre layout
+for a balanced hierarchical tree.
+
+**Usage:**
+
+```bash
+python run_visualization_server.py \
+[--num_classes NUM_CLASSES] \
+[--top_p TOP_P] \
+[--max_depth MAX_DEPTH] \
+[--max_width MAX_WIDTH] \
+[--temperature TEMPERATURE] \
+[--allowed_threshold ALLOWED_THRESHOLD] \
+[--loss_threshold LOSS_THRESHOLD] \
+[--model_size MODEL_SIZE] \
+[--port PORT] \
+[--host HOST]
+```
+
+**Example:**
+
+```bash
+python run_visualization_server.py \
+--num_classes 10 \
+--top_p 0.9 \
+--max_depth 4 \
+--max_width 16 \
+--temperature 0.5 \
+--allowed_threshold 0.7 \
+--loss_threshold 0.1 \
+--model_size tiny \
+--port 8050 \
+```
+
+**Overview:**
+
+- The script loads a taxonomy graph from a JSON file (constructed based on the specified
+  configuration parameters) and converts it into a NetworkX directed graph.
+- It visualizes the graph using Dash Cytoscape with the dagre layout, arranging the
+  nodes in a balanced, left-to-right hierarchical structure.
+- Nodes are rendered with clear labels and styling (e.g., light sky blue background,
+  black text), while edges are styled in a light gray color.
+- Upon launching, the script starts a Dash server bound to the specified host and port
+  and automatically opens the graph in a web browser.
+- This interactive visualization allows users to explore the taxonomy graph, making it a
+  useful tool for analyzing hierarchical structures.
 
 ## Contributing
 

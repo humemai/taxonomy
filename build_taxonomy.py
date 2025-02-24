@@ -9,7 +9,7 @@ Optionally, the generated taxonomy can be visualized using NetworkX and PyVis/Da
 
 Example usage:
     python generate_taxonomy.py --tokenizer_path "./custom_tokenizer" --num_classes 10 --force_device cuda \
-        --top_p 0.95 --max_depth 32 --max_width 4 --max_attempts 4 --max_tokens_per_phrase 20 --temperature 1.5
+        --top_p 0.95 --max_depth 32 --max_width 4 --max_tokens_per_phrase 20 --temperature 1.5
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ import threading
 # Additional imports for Dash Cytoscape visualization.
 from jupyter_dash import JupyterDash
 import dash_cytoscape as cyto
-import dash_html_components as html
+from dash import html
 from IPython.display import clear_output
 
 cyto.load_extra_layouts()
@@ -39,6 +39,21 @@ cyto.load_extra_layouts()
 ###############################################
 # Utility Functions: Loading Model, Tokenizer & Phrases
 ###############################################
+
+
+def get_latest_checkpoint_dir(base_dir):
+    # List all subdirectories that match the pattern "checkpoint-XXX"
+    checkpoint_dirs = [
+        d
+        for d in os.listdir(base_dir)
+        if os.path.isdir(os.path.join(base_dir, d)) and d.startswith("checkpoint-")
+    ]
+    if not checkpoint_dirs:
+        return None
+    # Sort the directories by the numeric portion after "checkpoint-"
+    checkpoint_dirs.sort(key=lambda d: int(d.split("-")[-1]))
+    latest_checkpoint = checkpoint_dirs[-1]
+    return os.path.join(base_dir, latest_checkpoint)
 
 
 def load_tokenizer(tokenizer_path: str) -> GPT2Tokenizer:
@@ -83,12 +98,13 @@ def load_model(
     return model, device
 
 
-def load_phrases(num_classes: int) -> dict:
+def load_phrases(num_classes: int, allowed_threshold: float) -> dict:
     """
     Load vocabulary phrases and their counts from JSON files and combine them into a dictionary.
 
     Args:
         num_classes (int): The number of classes (or top phrases) to load.
+        allowed_threshold (float): The threshold for allowed phrases.
 
     Returns:
         dict: A dictionary mapping each phrase (str) to another dictionary with keys:
@@ -96,11 +112,15 @@ def load_phrases(num_classes: int) -> dict:
               - "id": The original ID.
     """
     with open(
-        f"./process_paths/vocab_top_{num_classes}.json", "r", encoding="utf-8"
+        f"./process_paths/allowed_threshold_{allowed_threshold:.1f}/vocab_top_{num_classes}.json",
+        "r",
+        encoding="utf-8",
     ) as f:
         phrases_ = json.load(f)
     with open(
-        f"./process_paths/counts_top_{num_classes}.json", "r", encoding="utf-8"
+        f"./process_paths/allowed_threshold_{allowed_threshold:.1f}/counts_top_{num_classes}.json",
+        "r",
+        encoding="utf-8",
     ) as f:
         counts = json.load(f)
     phrases = {}
@@ -265,6 +285,7 @@ def top_p_filtering(
         sorted_logits, sorted_indices = torch.sort(logits, descending=True)
         cumulative_probs = torch.cumsum(torch.softmax(sorted_logits, dim=-1), dim=-1)
         sorted_indices_to_remove = cumulative_probs > top_p
+        # Shift the mask right to keep the first token above the threshold
         sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
         sorted_indices_to_remove[..., 0] = 0
         indices_to_remove = sorted_indices[sorted_indices_to_remove]
@@ -286,64 +307,99 @@ def generate_batch_child_phrases(
     temperature: float = 1.0,
 ) -> list:
     """
-    Generate candidate phrases for a list of prompts in batch.
-
-    Args:
-        model (GPT2LMHeadModel): The language model used for generation.
-        tokenizer (GPT2Tokenizer): The tokenizer for encoding prompts and decoding tokens.
-        prompts (list): A list of prompt strings.
-        max_tokens_per_phrase (int, optional): Maximum tokens to generate per phrase.
-        top_p (float, optional): Nucleus sampling threshold.
-        temperature (float, optional): Sampling temperature.
-
-    Returns:
-        list: A list of candidate phrases generated from the prompts.
+    Generate candidate phrases for a list of prompts in batch, stopping generation
+    as soon as we see <DOWNWARD> or <EOS> for each individual sequence.
     """
-    # Encode all prompts.
+
+    device = model.device
+
+    # Encode all prompts
     encoded_prompts = [
         tokenizer.encode(prompt, add_special_tokens=False) for prompt in prompts
     ]
-    max_prompt_len = max(len(ids) for ids in encoded_prompts)
-    # Pad sequences to uniform length.
-    padded_prompts = [
-        ids + [tokenizer.eos_token_id] * (max_prompt_len - len(ids))
-        for ids in encoded_prompts
-    ]
-    input_ids = torch.tensor(padded_prompts).to(model.device)
+    batch_size = len(encoded_prompts)
 
-    generated = input_ids
+    # Pad all prompt encodings to the same length
+    max_prompt_len = max(len(ids) for ids in encoded_prompts)
+    padded_prompts = []
+    for ids in encoded_prompts:
+        needed = max_prompt_len - len(ids)
+        padded = ids + [tokenizer.eos_token_id] * needed
+        padded_prompts.append(padded)
+
+    input_ids = torch.tensor(padded_prompts, device=device, dtype=torch.long)
+    generated = input_ids.clone()
+
+    # Identify boundary tokens
+    downward_ids = tokenizer.encode("<DOWNWARD>", add_special_tokens=False)
+    eos_ids = tokenizer.encode("<EOS>", add_special_tokens=False)
+
+    boundary_ids = set()
+    if downward_ids:
+        boundary_ids.add(downward_ids[0])
+    if eos_ids:
+        boundary_ids.add(eos_ids[0])
+
+    # Keep track of which sequences are "done" (already produced boundary)
+    done_mask = torch.zeros(batch_size, dtype=torch.bool, device=device)
 
     amp_context = (
-        torch.cuda.amp.autocast()
-        if model.device.type == "cuda"
-        else contextlib.nullcontext()
+        torch.cuda.amp.autocast() if device.type == "cuda" else contextlib.nullcontext()
     )
+
     with torch.inference_mode(), amp_context:
-        for _ in range(max_tokens_per_phrase):
+        for step in range(max_tokens_per_phrase):
+            # Forward pass
             outputs = model(generated)
-            logits = outputs.logits[:, -1, :]  # (batch_size, vocab_size)
+            logits = outputs.logits[:, -1, :]  # shape: (batch_size, vocab_size)
 
-            # Apply top-p filtering for each batch element.
-            for i in range(logits.size(0)):
-                logits[i : i + 1] = top_p_filtering(
-                    logits[i : i + 1].clone(), top_p=top_p
-                )
+            # Apply top-p filtering only for those *not* done
+            for i in range(batch_size):
+                if not done_mask[i]:
+                    logits[i : i + 1] = top_p_filtering(
+                        logits[i : i + 1].clone(), top_p=top_p
+                    )
+                else:
+                    # Force done sequences to produce only EOS (or pad),
+                    # ensuring they remain "stalled"
+                    logits[i] = float("-inf")
+                    logits[i, tokenizer.eos_token_id] = 0.0
 
+            # Sample with temperature
             probs = torch.softmax(logits / temperature, dim=-1)
-            next_tokens = torch.multinomial(probs, num_samples=1)
-            generated = torch.cat((generated, next_tokens), dim=1)
+            next_tokens = torch.multinomial(probs, num_samples=1).squeeze(-1)
+            # shape: (batch_size,)
 
+            # Append new tokens
+            generated = torch.cat((generated, next_tokens.unsqueeze(-1)), dim=1)
+
+            # Mark sequences done if they produce a boundary
+            for i in range(batch_size):
+                if (not done_mask[i]) and (next_tokens[i].item() in boundary_ids):
+                    done_mask[i] = True
+
+            # If everyone is done, break early
+            if done_mask.all():
+                break
+
+    # Now decode. We only want the portion from end-of-prompt up to the first boundary.
     candidate_texts = []
-    delimiter_ids = tokenizer.encode("<DOWNWARD>", add_special_tokens=False)
-    delimiter_token_id = delimiter_ids[0] if delimiter_ids else None
-
-    for prompt_ids, gen_ids in zip(encoded_prompts, generated.tolist()):
+    for prompt_ids, full_gen_ids in zip(encoded_prompts, generated.tolist()):
         start_index = len(prompt_ids)
-        try:
-            delimiter_index = gen_ids.index(delimiter_token_id, start_index)
-            candidate_ids = gen_ids[start_index:delimiter_index]
-        except ValueError:
-            candidate_ids = gen_ids[start_index:]
+
+        # By default, take everything after the prompt
+        candidate_ids = full_gen_ids[start_index:]
+
+        # Truncate at the earliest boundary (if any)
+        earliest_boundary_idx = None
+        for i in range(start_index, len(full_gen_ids)):
+            if full_gen_ids[i] in boundary_ids:
+                earliest_boundary_idx = i
+                break
+        if earliest_boundary_idx is not None:
+            candidate_ids = full_gen_ids[start_index:earliest_boundary_idx]
+
+        # Decode
         candidate = tokenizer.decode(candidate_ids, skip_special_tokens=True).strip()
         candidate = " ".join(candidate.split())
         candidate_texts.append(candidate)
@@ -366,59 +422,37 @@ def expand_node_parallel(
     phrases: dict,
     current_depth: int = 0,
     top_p: float = 0.95,
-    max_attempts: int = 6,
     max_tokens_per_phrase: int = 20,
     temperature: float = 1.0,
+    current_width: int = None,
+    width_decay_factor: float = 0.8,  # New parameter
 ) -> None:
     """
-    Recursively expand a tree node by generating child phrases in parallel using batch generation.
-
-    Args:
-        node (TreeNode): The current node to expand.
-        model (GPT2LMHeadModel): The language model used for text generation.
-        tokenizer (GPT2Tokenizer): The tokenizer for encoding and decoding text.
-        phrase_trie (PhraseTrie): A trie containing valid phrases.
-        max_depth (int): Maximum depth to expand.
-        max_width (int): Maximum number of children per node.
-        phrases (dict): Dictionary of valid phrases.
-        current_depth (int, optional): The current depth in the tree. Defaults to 0.
-        top_p (float, optional): Nucleus sampling threshold.
-        max_attempts (int, optional): Maximum generation attempts per node.
-        max_tokens_per_phrase (int, optional): Maximum tokens generated per candidate phrase.
-        temperature (float, optional): Temperature parameter for sampling.
-
-    Returns:
-        None
+    Recursively expand a tree node by generating child phrases. The width used at
+    each level starts at max_width and is halved at each subsequent level, down
+    to a minimum of 1.
     """
     if current_depth >= max_depth:
         return
 
+    if current_width is None:
+        current_width = max_width
+
+    # Construct the branch prompt.
     branch = node.get_branch()
     branch_clean = [phrase.strip() for phrase in branch if phrase.strip() != ""]
 
-    # Construct prompt based on the branch.
-    if branch_clean and branch_clean[0] == "<BOS>":
-        if len(branch_clean) == 1:
-            prompt = "<BOS>"
-        elif len(branch_clean) == 2:
-            prompt = branch_clean[0] + branch_clean[1]
-        else:
-            prompt = (
-                branch_clean[0]
-                + branch_clean[1]
-                + "<DOWNWARD>"
-                + "<DOWNWARD>".join(branch_clean[2:])
-            )
-    else:
-        prompt = "<DOWNWARD>".join(branch_clean)
+    # -- Simplified prompt construction. Always join by <DOWNWARD> --
+    prompt = "<DOWNWARD>".join(branch_clean)
 
     print(f"DEBUG: Expanding node at depth {current_depth} with branch: {branch_clean}")
     print(f"DEBUG: Using prompt: '{prompt}'")
+    print(f"DEBUG: Using current_width = {current_width}")
 
-    # Create a batch of prompts.
+    # Create a batch of prompts equal to the current_width.
     batch_prompts = []
-    for _ in range(max_attempts):
-        current_prompt = prompt if len(branch_clean) == 1 else prompt + "<DOWNWARD>"
+    for _ in range(current_width):
+        current_prompt = prompt + "<DOWNWARD>"
         batch_prompts.append(current_prompt)
 
     # Generate candidate phrases in batch.
@@ -431,11 +465,8 @@ def expand_node_parallel(
         temperature=temperature,
     )
 
-    candidates = list(set(candidates))
-    random.shuffle(candidates)
-
     children_generated = 0
-    for candidate in candidates:
+    for candidate in list(set(candidates)):
         if not candidate:
             print("DEBUG: Candidate empty, skipping.")
             continue
@@ -456,7 +487,8 @@ def expand_node_parallel(
         node.add_child(child_node)
         children_generated += 1
 
-        # Expand the child node concurrently.
+        # Recursively expand this child, halving the width for the next level.
+        next_width = max(1, int(current_width * width_decay_factor))
         with concurrent.futures.ThreadPoolExecutor() as executor:
             executor.submit(
                 expand_node_parallel,
@@ -469,11 +501,14 @@ def expand_node_parallel(
                 phrases,
                 current_depth + 1,
                 top_p,
-                max_attempts,
                 max_tokens_per_phrase,
                 temperature,
+                next_width,
+                width_decay_factor,
             )
-        if children_generated >= max_width:
+
+        # If we've created all possible children for this node, stop.
+        if children_generated >= current_width:
             break
 
 
@@ -496,10 +531,14 @@ def tree_to_nx_graph(root: TreeNode, phrases: dict) -> nx.DiGraph:
     G = nx.DiGraph()
 
     def add_edges(node):
-        if node.phrase in phrases:
+        # If this is the special root phrase <BOS>entity, display it as "entity".
+        if node.phrase == "<BOS>entity":
+            label = "entity"
+        elif node.phrase in phrases:
             label = f"{node.phrase}\n({phrases[node.phrase]['id']})"
         else:
             label = node.phrase
+
         G.add_node(id(node), label=label)
         for child in node.children:
             add_edges(child)
@@ -697,12 +736,6 @@ def main():
         "--max_width", type=int, default=4, help="Maximum number of children per node."
     )
     parser.add_argument(
-        "--max_attempts",
-        type=int,
-        default=4,
-        help="Maximum generation attempts per node.",
-    )
-    parser.add_argument(
         "--max_tokens_per_phrase",
         type=int,
         default=20,
@@ -711,19 +744,59 @@ def main():
     parser.add_argument(
         "--temperature", type=float, default=1.5, help="Sampling temperature."
     )
+    parser.add_argument(
+        "--allowed_threshold",
+        type=float,
+        help="Allowed threshold",
+    )
+    parser.add_argument(
+        "--loss_threshold",
+        type=float,
+        default=0.1,
+        help="Training stops if the loss goes below this value (default: 0.1)",
+    )
+    parser.add_argument(
+        "--model_size",
+        type=str,
+        choices=["tiny", "small", "medium", "large"],
+        default="small",
+        help="Model size (default: small)",
+    )
+    parser.add_argument(
+        "--width_decay_factor",
+        type=float,
+        default=0.8,
+        help="Multiplicative decay factor for reducing node width at each level (e.g., 0.8 means a 20% reduction per level).",
+    )
     args = parser.parse_args()
 
     # Load resources.
-    phrases = load_phrases(args.num_classes)
+    phrases = load_phrases(args.num_classes, args.allowed_threshold)
     tokenizer = load_tokenizer(args.tokenizer_path)
     phrase_trie = build_phrase_trie(phrases, tokenizer)
-    checkpoint_dir = f"model_output_{args.num_classes}/"
-    model, device = load_model(
-        checkpoint_dir, tokenizer, force_device=args.force_device
+
+    # Build the base checkpoint directory path
+    checkpoint_dir = (
+        f"model_output/allowed_threshold_{args.allowed_threshold:.1f}/"
+        f"model_size_{args.model_size}/loss_threshold_{args.loss_threshold:.1f}/"
+        f"num_classes_{args.num_classes}/"
+        f"sample_first_batch_True/"
+        f"sampling_mode_class_aware/"
     )
 
-    # Build tree starting from <BOS>
-    root = TreeNode("<BOS>")
+    # Find the latest checkpoint subdirectory
+    latest_checkpoint_dir = get_latest_checkpoint_dir(checkpoint_dir)
+    if latest_checkpoint_dir is not None:
+        model, device = load_model(
+            latest_checkpoint_dir, tokenizer, force_device=args.force_device
+        )
+    else:
+        raise FileNotFoundError(f"No checkpoint found in {checkpoint_dir}.")
+
+    # Build tree starting from <BOS>entity (label it as "entity" in visualization)
+    root = TreeNode("<BOS>entity")
+
+    # We can start from depth=1 so that the root is effectively "entity" at depth 1.
     expand_node_parallel(
         root,
         model,
@@ -733,14 +806,17 @@ def main():
         max_width=args.max_width,
         phrases=phrases,
         top_p=args.top_p,
-        max_attempts=args.max_attempts,
         max_tokens_per_phrase=args.max_tokens_per_phrase,
         temperature=args.temperature,
+        current_depth=0,  # start from "entity" as depth 0
+        width_decay_factor=args.width_decay_factor,
     )
 
     # Optionally print the hierarchical tree to the console.
     def print_tree(node, phrases, indent=0):
-        if node.phrase in phrases:
+        if node.phrase == "<BOS>entity":
+            label = "entity"
+        elif node.phrase in phrases:
             label = f"{node.phrase} ({phrases[node.phrase]['id']})"
         else:
             label = node.phrase
@@ -754,11 +830,20 @@ def main():
     # Save the taxonomy.
     os.makedirs("trees", exist_ok=True)
     filename = (
-        f"trees/num_classes_{args.num_classes}_top_p_{args.top_p}_max_depth_{args.max_depth}"
-        f"_max_width_{args.max_width}_max_attempts_{args.max_attempts}"
+        f"trees/"
+        f"model_size_{args.model_size}"
+        f"_num_classes_{args.num_classes}"
+        f"_allowed_threshold_{args.allowed_threshold:.1f}"
+        f"_loss_threshold_{args.loss_threshold:.1f}"
+        f"_top_p_{args.top_p}"
+        f"_max_depth_{args.max_depth}"
+        f"_max_width_{args.max_width}"
         f"_temperature_{args.temperature}"
+        f"_width_decay_factor_{args.width_decay_factor}"
+        f".json"
     )
-    save_taxonomy_json(root, phrases, output_filename=f"{filename}.json")
+
+    save_taxonomy_json(root, phrases, output_filename=filename)
 
 
 if __name__ == "__main__":

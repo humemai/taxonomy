@@ -32,38 +32,38 @@ def parse_arguments():
         description="Aggregate paths for top-K Wikidata classes and produce a single histogram + stats."
     )
     parser.add_argument(
-        "--num-classes",
+        "--num_classes",
         type=int,
         nargs="+",
         default=[10, 100, 1000, 10000],
-        help="List of top-K classes to process. E.g. --num-classes 10 100 1000 10000",
+        help="List of top-K classes to process. E.g. --num_classes 10 100 1000 10000",
     )
     parser.add_argument(
-        "--entityid2label-json",
+        "--entityid2label_json",
         type=str,
         default="./entityid2label.json",
         help="Path to the entityid2label.json file.",
     )
     parser.add_argument(
-        "--en_description-json",
+        "--en_description_json",
         type=str,
         default="./en_description.json",
         help="Path to the en_description.json file.",
     )
     parser.add_argument(
-        "--class-counts-json",
+        "--class_counts_json",
         type=str,
         default="./process_p31_p279/class_counts.json",
         help="Path to class_counts.json.",
     )
     parser.add_argument(
-        "--extracted-paths-dir",
+        "--extracted_paths_dir",
         type=str,
         default="./extracted_paths",
         help="Directory containing extracted_paths subfolders (one per class).",
     )
     parser.add_argument(
-        "--output-dir",
+        "--output_dir",
         type=str,
         default="./process_paths",
         help="Directory to store outputs (histograms, JSON files).",

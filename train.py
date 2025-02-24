@@ -23,24 +23,30 @@ from transformers import (
     GPT2Tokenizer,
     Trainer,
     TrainingArguments,
+    TrainerCallback,
 )
 
 
 ###############################################################################
-# 0. Parse Command Line Arguments (moved to the beginning)
+# 0. Parse Command Line Arguments
 ###############################################################################
 
 
 def parse_args():
+    """
+    Parse command-line arguments for training the GPT-2 model with a custom tokenizer,
+    class-aware sampling, training by steps instead of epochs, and an early stopping
+    mechanism based on a loss threshold.
+    """
     parser = argparse.ArgumentParser(
-        description="Train a GPT-2 model with custom tokenizer and class-aware sampling"
+        description="Train a GPT-2 model with a custom tokenizer and class-aware sampling by steps."
     )
     # Misc flags
     parser.add_argument(
         "--time_data_loading",
         action="store_true",
         default=False,
-        help="Time the data loading for train dataloader (default: False)",
+        help="Time the data loading for the train dataloader (default: False)",
     )
     parser.add_argument(
         "--fp16",
@@ -51,8 +57,8 @@ def parse_args():
     parser.add_argument(
         "--num_workers",
         type=int,
-        default=1,
-        help="Number of dataloader workers (default: 1)",
+        default=2,
+        help="Number of dataloader workers (default: 2)",
     )
     parser.add_argument(
         "--max_length",
@@ -61,32 +67,46 @@ def parse_args():
         help="Maximum sequence length (default: 256)",
     )
     parser.add_argument(
+        "--allowed_threshold",
+        type=float,
+        default=0.3,
+        help="Allowed threshold (default: 0.3)",
+    )
+    parser.add_argument(
         "--per_device_train_batch_size",
         type=int,
         default=64,
         help="Train batch size per device (default: 64)",
     )
     parser.add_argument(
-        "--logging_steps", type=int, default=100, help="Logging steps (default: 100)"
+        "--logging_steps",
+        type=int,
+        default=50,
+        help="Log training metrics every N steps (default: 50)",
     )
     parser.add_argument(
-        "--save_steps", type=int, default=1000, help="Save steps (default: 1000)"
+        "--save_steps",
+        type=int,
+        default=250,
+        help="Save checkpoint every N steps (default: 250)",
     )
     parser.add_argument(
-        "--save_total_limit", type=int, default=2, help="Save total limit (default: 2)"
+        "--save_total_limit",
+        type=int,
+        default=2,
+        help="Maximum number of checkpoints to save (default: 2)",
     )
-
+    parser.add_argument(
+        "--max_steps",
+        type=int,
+        default=50000,
+        help="Total number of training steps (default: 50000)",
+    )
     parser.add_argument(
         "--num_classes",
         type=int,
         default=10000,
-        help="Number of classes (default: 10000)",
-    )
-    parser.add_argument(
-        "--num_train_epochs",
-        type=int,
-        default=1,
-        help="Number of training epochs (default: 1)",
+        help="Number of classes to use from the dataset (default: 10000)",
     )
     # sample_first_batch default True; add flag to disable it.
     parser.add_argument(
@@ -105,22 +125,27 @@ def parse_args():
     parser.add_argument(
         "--model_size",
         type=str,
-        choices=["small", "medium", "large"],
-        default="medium",
-        help="Model size (default: medium)",
+        choices=["tiny", "small", "medium", "large"],
+        default="small",
+        help="Model size (default: small)",
     )
     parser.add_argument(
         "--load_checkpoint_dir",
         type=str,
         default=None,
-        help="Directory to load checkpoint from. (default: None)",
+        help="Directory to load checkpoint from (default: None)",
     )
-
     parser.add_argument(
         "--no_cuda",
         dest="use_cuda",
         action="store_false",
         help="Do not use CUDA even if available",
+    )
+    parser.add_argument(
+        "--loss_threshold",
+        type=float,
+        default=0.1,
+        help="Training stops if the loss goes below this value (default: 0.1)",
     )
 
     args = parser.parse_args()
@@ -143,7 +168,6 @@ def get_or_create_tokenizer(custom_tokenizer_dir="custom_tokenizer"):
             "No custom tokenizer found. Creating one from base GPT-2 and adding special tokens..."
         )
         base_tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
-
         special_tokens = {
             "bos_token": "<BOS>",
             "eos_token": "<EOS>",
@@ -154,14 +178,10 @@ def get_or_create_tokenizer(custom_tokenizer_dir="custom_tokenizer"):
         print(
             f"Added {num_added} special tokens. New vocab size = {len(base_tokenizer)}"
         )
-
-        # Save this new tokenizer for future runs
         base_tokenizer.save_pretrained(custom_tokenizer_dir)
         print(f"Custom tokenizer saved to {custom_tokenizer_dir}.")
     else:
         print(f"Found existing custom tokenizer at {custom_tokenizer_dir}.")
-
-    # Now load the (possibly newly-created) custom tokenizer
     tokenizer = GPT2Tokenizer.from_pretrained(custom_tokenizer_dir)
     print(f"Loaded custom tokenizer with vocab size = {len(tokenizer)}")
     return tokenizer
@@ -172,17 +192,17 @@ def get_or_create_tokenizer(custom_tokenizer_dir="custom_tokenizer"):
 ###############################################################################
 
 
-def get_tsv_paths(num_classes, sample_first_batch):
+def get_tsv_paths(num_classes, sample_first_batch, allowed_threshold):
     with open("process_p31_p279/class_counts.json", "r", encoding="utf-8") as f:
         class_counts = json.load(f)
     starting_entities = set(list(class_counts.keys())[:num_classes])
-
     tsv_paths_by_class = {}
-    for path in glob("./extracted_paths/*/*.tsv"):
+    for path in glob(
+        f"./extracted_paths/allowed_threshold_{allowed_threshold:.1f}/*/*.tsv"
+    ):
         class_dir = os.path.basename(os.path.dirname(path))
         if class_dir in starting_entities:
             tsv_paths_by_class.setdefault(class_dir, []).append(path)
-
     tsv_paths = []
     if sample_first_batch:
         for class_dir, paths in tsv_paths_by_class.items():
@@ -194,14 +214,15 @@ def get_tsv_paths(num_classes, sample_first_batch):
     else:
         for paths in tsv_paths_by_class.values():
             tsv_paths.extend(paths)
-
     print(f"Found {len(tsv_paths)} TSV files.")
     return tsv_paths
 
 
-def load_id2label(num_classes):
+def load_id2label(num_classes, allowed_threshold):
     with open(
-        f"process_paths/vocab_top_{num_classes}.json", "r", encoding="utf-8"
+        f"process_paths/allowed_threshold_{allowed_threshold:.1f}/vocab_top_{num_classes}.json",
+        "r",
+        encoding="utf-8",
     ) as f:
         id2label = json.load(f)
     return id2label
@@ -213,18 +234,12 @@ def load_id2label(num_classes):
 
 
 class EfficientLazyDataset(Dataset):
-    """
-    Builds an index of (file_idx, byte_offset) for each non-empty line in TSV files.
-    __getitem__ seeks directly to that offset, reads one line, and tokenizes it.
-    """
-
     def __init__(self, tsv_paths, id2label, tokenizer, max_length):
         self.tsv_paths = tsv_paths
         self.id2label = id2label
         self.tokenizer = tokenizer
         self.max_length = max_length
         self.index_mapping = []
-
         print("Building file offset index for lazy loading...")
         for file_idx, path in enumerate(tqdm(tsv_paths, desc="Indexing TSV files")):
             with open(path, "rb") as f:
@@ -243,23 +258,18 @@ class EfficientLazyDataset(Dataset):
     def __getitem__(self, idx):
         file_idx, offset = self.index_mapping[idx]
         path = self.tsv_paths[file_idx]
-
         with open(path, "rb") as f:
             f.seek(offset)
             line = f.readline().decode("utf-8")
-
         items = line.strip().split("\t")
         tokens = [self.id2label.get(token, token) for token in items]
-
         if tokens:
-            # Build <BOS> tok1 <DOWNWARD> tok2 ... <EOS>
             sequence = self.tokenizer.bos_token + tokens[0]
             for token in tokens[1:]:
                 sequence += self.tokenizer.additional_special_tokens[0] + token
             sequence += self.tokenizer.eos_token
         else:
             sequence = self.tokenizer.bos_token + self.tokenizer.eos_token
-
         encoding = self.tokenizer(
             sequence,
             truncation=False,
@@ -285,21 +295,31 @@ class SubsetLazyDataset(EfficientLazyDataset):
 
 
 ###############################################################################
-# 4. Custom Trainer with Optional Class-Aware Sampling
+# 4. Custom Trainer with Optional Class-Aware Sampling and Early Stopping
 ###############################################################################
 
 
-class MyTrainer(Trainer):
+class LossThresholdCallback(TrainerCallback):
+    def __init__(self, threshold: float = 0.5):
+        self.threshold = threshold
 
-    def __init__(self, sampling_mode="iid", **kwargs):
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        if logs and "loss" in logs:
+            loss = logs["loss"]
+            print(f"Current loss: {loss:.4f}")
+            if loss <= self.threshold:
+                print(
+                    f"Loss threshold reached (loss <= {self.threshold}). Stopping training."
+                )
+                control.should_training_stop = True
+
+
+class MyTrainer(Trainer):
+    def __init__(self, sampling_mode="class_aware", **kwargs):
         self.sampling_mode = sampling_mode
         super().__init__(**kwargs)
 
     def _get_dataloader_with_sampling(self, dataset, batch_size, shuffle):
-        """
-        Returns a DataLoader for the given dataset. If class-aware sampling is selected,
-        it applies a WeightedRandomSampler; otherwise, it falls back to simple shuffling.
-        """
         if self.sampling_mode == "class_aware":
             class_labels = []
             for file_idx, _ in dataset.index_mapping:
@@ -309,8 +329,6 @@ class MyTrainer(Trainer):
             counts = Counter(class_labels)
             weights = [1.0 / counts[label] for label in class_labels]
             print(f"Computed sample weights for {len(weights)} samples.")
-
-            # Use numpy-based sampling if the dataset is very large
             if len(weights) > 2**24:
                 import numpy as np
 
@@ -329,7 +347,6 @@ class MyTrainer(Trainer):
                     weights, num_samples=len(dataset), replacement=True
                 )
                 print("Using WeightedRandomSampler.")
-
             return DataLoader(
                 dataset,
                 batch_size=batch_size,
@@ -353,8 +370,6 @@ class MyTrainer(Trainer):
             shuffle=True,
         )
 
-    # Removed get_eval_dataloader since we are not using validation.
-
 
 ###############################################################################
 # 5. Main Training Logic
@@ -367,18 +382,34 @@ def main():
     # 1. Get or create tokenizer
     tokenizer = get_or_create_tokenizer("custom_tokenizer")
 
-    # 2. Get TSV paths and id2label
+    # 2. Get TSV paths and id2label mapping
     tsv_paths = get_tsv_paths(
-        num_classes=args.num_classes, sample_first_batch=args.sample_first_batch
+        num_classes=args.num_classes,
+        sample_first_batch=args.sample_first_batch,
+        allowed_threshold=args.allowed_threshold,
     )
-    id2label = load_id2label(num_classes=args.num_classes)
+    id2label = load_id2label(
+        num_classes=args.num_classes, allowed_threshold=args.allowed_threshold
+    )
 
-    # 3. Build Dataset (using full dataset for training)
+    # 3. Build full dataset (using all samples for training)
     full_dataset = EfficientLazyDataset(tsv_paths, id2label, tokenizer, args.max_length)
-    train_dataset = full_dataset  # No validation split
+    print(f"Total training samples: {len(full_dataset)}")
 
     # 4. Define model architecture based on chosen model size
-    if args.model_size == "small":
+    if args.model_size == "tiny":
+        model_arch = {
+            "vocab_size": len(tokenizer),
+            "n_embd": 64,
+            "n_layer": 1,
+            "n_head": 1,
+            "n_inner": 256,
+            "n_positions": args.max_length,
+            "attn_pdrop": 0.1,
+            "resid_pdrop": 0.1,
+            "embd_pdrop": 0.1,
+        }
+    elif args.model_size == "small":
         model_arch = {
             "vocab_size": len(tokenizer),
             "n_embd": 128,
@@ -396,7 +427,7 @@ def main():
             "n_embd": 256,
             "n_layer": 4,
             "n_head": 4,
-            "n_inner": 1024,  # typically 4 * n_embd
+            "n_inner": 1024,
             "n_positions": args.max_length,
             "attn_pdrop": 0.1,
             "resid_pdrop": 0.1,
@@ -408,7 +439,7 @@ def main():
             "n_embd": 512,
             "n_layer": 8,
             "n_head": 8,
-            "n_inner": 2048,  # typically 4 * n_embd
+            "n_inner": 2048,
             "n_positions": args.max_length,
             "attn_pdrop": 0.1,
             "resid_pdrop": 0.1,
@@ -424,8 +455,7 @@ def main():
         if model.config.vocab_size != len(tokenizer):
             raise ValueError(
                 f"Checkpoint vocab_size ({model.config.vocab_size}) does not match "
-                f"the current tokenizer length ({len(tokenizer)}). "
-                "Make sure to add special tokens and resize the model before training."
+                f"the current tokenizer length ({len(tokenizer)})."
             )
     else:
         print("\nTraining from scratch.")
@@ -442,14 +472,18 @@ def main():
     print(f"Using device: {device}")
     print(f"Total model parameters: {model.num_parameters()}")
 
-    # 7. Training arguments (evaluation disabled)
+    # 7. Training arguments (using max_steps instead of epochs and no evaluation)
     training_args = TrainingArguments(
-        output_dir=f"./model_output_{args.num_classes}/model_size_{args.model_size}/"
-        f"sample_first_batch_{args.sample_first_batch}/sampling_mode_{args.sampling_mode}",
+        output_dir=(
+            f"./model_output/allowed_threshold_{args.allowed_threshold:.1f}/"
+            f"model_size_{args.model_size}/loss_threshold_{args.loss_threshold:.1f}/"
+            f"num_classes_{args.num_classes}/"
+            f"sample_first_batch_{args.sample_first_batch}/"
+            f"sampling_mode_{args.sampling_mode}"
+        ),
         overwrite_output_dir=True,
-        num_train_epochs=args.num_train_epochs,
+        max_steps=args.max_steps,
         per_device_train_batch_size=args.per_device_train_batch_size,
-        eval_strategy="no",  # No evaluation
         logging_steps=args.logging_steps,
         save_steps=args.save_steps,
         save_total_limit=args.save_total_limit,
@@ -457,15 +491,31 @@ def main():
         dataloader_num_workers=args.num_workers,
     )
 
-    # 8. Build trainer (only train_dataset is provided)
+    # Create the output directory if it doesn't exist
+    os.makedirs(training_args.output_dir, exist_ok=True)
+
+    # Save training arguments to a JSON file
+    args_filepath = os.path.join(training_args.output_dir, "training_args.json")
+    with open(args_filepath, "w", encoding="utf-8") as f:
+        json.dump(vars(args), f, indent=4)
+    print(f"Training arguments saved to {args_filepath}")
+
+    # Save the number of model parameters to a text file
+    params_filepath = os.path.join(training_args.output_dir, "model_parameters.txt")
+    with open(params_filepath, "w", encoding="utf-8") as f:
+        f.write(f"Total model parameters: {model.num_parameters()}\n")
+    print(f"Model parameters count saved to {params_filepath}")
+
+    # 8. Build trainer with early stopping callback
     trainer = MyTrainer(
         model=model,
         args=training_args,
-        train_dataset=train_dataset,
+        train_dataset=full_dataset,
         sampling_mode=args.sampling_mode,
+        callbacks=[LossThresholdCallback(threshold=args.loss_threshold)],
     )
 
-    # 9. (Optional) Time data loading
+    # 9. (Optional) Time data loading for the train dataloader
     if args.time_data_loading:
         print("\nTiming the data loading for train dataloader...")
         train_dataloader = trainer.get_train_dataloader()
@@ -481,7 +531,7 @@ def main():
 
     # 10. Start training
     print(
-        f"\nStarting training. Checkpoint: {args.load_checkpoint_dir or 'None (scratch)'}"
+        f"\nStarting training for {args.max_steps} steps. Checkpoint: {args.load_checkpoint_dir or 'None (scratch)'}"
     )
     trainer.train(
         resume_from_checkpoint=(

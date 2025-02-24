@@ -9,11 +9,11 @@ downward path. It also logs detailed statistics for each class while managing me
 garbage collection.
 
 Usage:
-    python get_paths.py [--num-classes NUM_CLASSES]
-        [--max-depth MAX_DEPTH] [--max-paths-per-class MAX_PATHS_PER_CLASS]
-        [--allowed-threshold ALLOWED_THRESHOLD]
+    python get_paths.py [--num_classes NUM_CLASSES]
+        [--max-depth MAX_DEPTH] [--max_paths_per_class MAX_PATHS_PER_CLASS]
+        [--allowed_threshold ALLOWED_THRESHOLD]
         [--batch-size BATCH_SIZE] --direction {upward,downward,both}
-        [--output-dir OUTPUT_DIR]
+        [--output_dir OUTPUT_DIR]
 
 Example:
     python get_paths.py --num_classes 20 --max_depth 5 \
@@ -633,7 +633,7 @@ def main():
         description="Generate, combine, batch, and export unique upward and/or downward paths for top N classes."
     )
     parser.add_argument(
-        "--num-classes",
+        "--num_classes",
         type=int,
         default=10,
         help="Number of top classes to process (default: 10)",
@@ -645,13 +645,13 @@ def main():
         help="Maximum depth for path generation (default: None)",
     )
     parser.add_argument(
-        "--max-paths-per-class",
+        "--max_paths_per_class",
         type=int,
         default=None,
         help="Maximum number of paths per class for each direction (default: None)",
     )
     parser.add_argument(
-        "--allowed-threshold",
+        "--allowed_threshold",
         type=float,
         default=None,
         help="Allowed threshold for the number of top classes in the generated paths (default: None)",
@@ -676,7 +676,7 @@ def main():
         help="Direction of paths to include: 'upward', 'downward', or 'both' (required)",
     )
     parser.add_argument(
-        "--class-counts-json",
+        "--class_counts_json",
         type=str,
         default="./process_p31_p279/class_counts.json",
         help="Path to class_counts.json, which contains class counts (default: './process_p31_p279/class_counts.json')",
@@ -687,7 +687,7 @@ def main():
         default="./process_p31_p279/child_to_parents.json",
     )
     parser.add_argument(
-        "--output-dir",
+        "--output_dir",
         type=str,
         default="./extracted_paths",
         help="Directory to store TSV and log files (default: './extracted_paths')",

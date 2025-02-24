@@ -1,32 +1,13 @@
+#!/usr/bin/env python
 """
-graph_viewer.py
+run_visualization_server.py
 
-This script loads a taxonomy graph from a JSON file in node-link format and visualizes it
-using Dash Cytoscape. The graph is rendered in a web browser using the dagre layout for a balanced
-hierarchical tree.
-
-Configuration parameters (with default values):
-    num_classes   : 10000
-    top_p         : 0.9
-    max_depth     : 6    (for debugging, try a shallow tree first)
-    max_width     : 16   (maximum children per node)
-    max_attempts  : 32
-    temperature   : 1.5
-    port          : 8056
-
-The filename is constructed as:
-    trees/num_classes_{num_classes}_top_p_{top_p}_max_depth_{max_depth}_max_width_{max_width}_max_attempts_{max_attempts}_temperature_{temperature}.json
+A drill-down Dash Cytoscape viewer using dash-cytoscape==1.0.2.
+This version converts all node IDs to strings and stores the Cytoscape elements as a Python list.
+Debug print statements are included.
 
 Usage:
-    python graph_viewer.py
-    [--num_classes NUM_CLASSES] [--top_p TOP_P] [--max_depth MAX_DEPTH]
-    [--max_width MAX_WIDTH] [--max_attempts MAX_ATTEMPTS]
-    [--temperature TEMPERATURE] [--port PORT]
-    [--host HOST]
-
-Example:
-    python graph_viewer.py --num_classes 10000 --top_p 0.9 --max_depth 6 --max_width 16 \
-                           --max_attempts 32 --temperature 1.5 --port 8056 --host 0.0.0.0
+    python run_visualization_server.py --filename /path/to/your.json [--host 127.0.0.1] [--port 8050]
 """
 
 import argparse
@@ -35,167 +16,160 @@ import threading
 import webbrowser
 
 import networkx as nx
-from dash import Dash, html
+from dash import Dash, html, dcc, Input, Output, State
 import dash_cytoscape as cyto
-from IPython.display import clear_output
 
-# Load extra layouts for Dash Cytoscape.
+# Load extra layouts (e.g. dagre)
 cyto.load_extra_layouts()
 
 
 def load_taxonomy_json(filename: str) -> nx.DiGraph:
     """
-    Load a taxonomy (graph) from a JSON file in node-link format and convert it into a NetworkX graph.
-
-    Args:
-        filename (str): The filename of the JSON file to load.
-
-    Returns:
-        nx.DiGraph: The reconstructed directed graph.
+    Load a taxonomy graph from a JSON file in node-link format.
+    The JSON is expected to have the edge list under the key "edges".
     """
     with open(filename, "r", encoding="utf-8") as f:
         data = json.load(f)
-    G = nx.node_link_graph(data, edges="edges")
+    # Explicitly tell NetworkX that edges are under "edges"
+    G = nx.node_link_graph(data, edges="edges", directed=True)
     return G
 
 
-def visualize_graph_dash(
-    G: nx.DiGraph, host: str = "127.0.0.1", port: int = 8050
-) -> None:
-    """
-    Visualize a NetworkX graph using Dash Cytoscape in an external web browser,
-    using the dagre layout for a balanced hierarchical tree.
-
-    Args:
-        G (nx.DiGraph): The NetworkX graph to visualize.
-        host (str, optional): The host address to bind the server. Use "0.0.0.0" for remote access.
-                              Defaults to "127.0.0.1".
-        port (int, optional): The port to run the Dash server on. Defaults to 8050.
-    """
-    # Convert nodes for Cytoscape.
-    nodes = []
-    for node_id, data in G.nodes(data=True):
-        label = data.get("label", str(node_id))
-        nodes.append({"data": {"id": str(node_id), "label": label}})
-
-    # Convert edges.
-    edges = []
-    for source, target in G.edges():
-        edges.append({"data": {"source": str(source), "target": str(target)}})
-
-    # Create the Dash app using Dash.
+def create_dash_app(G: nx.DiGraph, host: str, port: int) -> Dash:
     app = Dash(__name__)
-    app.layout = html.Div(
-        [
-            cyto.Cytoscape(
-                id="cytoscape-graph",
-                elements=nodes + edges,
-                layout={
-                    "name": "dagre",
-                    "rankDir": "LR",  # orient the tree from left to right
-                    "nodeSep": 30,
-                    "edgeSep": 10,
-                    "rankSep": 70,
-                    "padding": 10,
-                },
-                style={"width": "100%", "height": "100vh"},
-                stylesheet=[
-                    {
-                        "selector": "node",
-                        "style": {
-                            "label": "data(label)",
-                            "background-color": "#87CEFA",  # light sky blue
-                            "color": "#000",  # black font color
-                            "font-size": "14px",
-                            "text-valign": "bottom",
-                            "text-halign": "center",
-                            "text-margin-y": "10px",
-                            "width": "40px",  # bigger node size
-                            "height": "40px",
-                            "text-wrap": "wrap",  # allow text to wrap
-                            "text-max-width": "200px",  # increase maximum text width
-                        },
-                    },
-                    {"selector": "edge", "style": {"line-color": "#B3B3B3"}},
-                ],
-            )
-        ]
-    )
 
+    # --- DEBUG: Print graph info ---
+    print("Graph loaded with", G.number_of_nodes(), "nodes and", G.number_of_edges(), "edges.")
+
+    # --- Find the root node: the node whose "label" is "entity" ---
+    try:
+        root_node = next(n for n, d in G.nodes(data=True) if d.get("label") == "entity")
+        print("Found root node (raw):", root_node)
+    except StopIteration:
+        raise ValueError("No node with label 'entity' found in the graph.")
+
+    # Convert the root node ID to a string
+    root_node_str = str(root_node)
+
+    # --- Prepare initial elements as a Python list ---
+    init_elements = [{
+        "data": {
+            "id": root_node_str,
+            "label": G.nodes[root_node].get("label", root_node_str)
+        }
+    }]
+    print("Initial elements (Python list):", init_elements)
+
+    # For dash-cytoscape==1.0.2, pass the elements as a Python list (not a JSON string).
+    app.layout = html.Div([
+        # dcc.Store holds the elements as a Python list.
+        dcc.Store(id="store-elements", data=init_elements),
+        cyto.Cytoscape(
+            id="cytoscape-graph",
+            elements=init_elements,  # Pass Python list directly
+            layout={"name": "dagre", "rankDir": "LR"},
+            style={"width": "100%", "height": "100vh"},
+            stylesheet=[
+                {
+                    "selector": "node",
+                    "style": {
+                        "label": "data(label)",
+                        "background-color": "#87CEFA",
+                        "color": "#000",
+                        "font-size": "14px",
+                        "text-valign": "bottom",
+                        "text-halign": "center",
+                        "text-margin-y": "10px",
+                        "width": "40px",
+                        "height": "40px",
+                        "text-wrap": "wrap",
+                        "text-max-width": "200px",
+                    }
+                },
+                {
+                    "selector": "edge",
+                    "style": {"line-color": "#B3B3B3"}
+                },
+            ]
+        )
+    ])
+
+    @app.callback(
+        Output("store-elements", "data"),
+        Input("cytoscape-graph", "tapNodeData"),
+        State("store-elements", "data")
+    )
+    def expand_children(tapped_node, current_elements):
+        print("\n--- Callback: expand_children triggered ---")
+        print("Tapped node data:", tapped_node)
+        print("Current stored elements (list):", current_elements)
+        if not tapped_node:
+            return current_elements
+
+        # Get the node id from the tapped node (it's a string) and convert it to int for lookup.
+        node_id_str = tapped_node["id"]
+        node_id = int(node_id_str)
+
+        # Use the stored Python list (current_elements)
+        existing_node_ids = {
+            el["data"]["id"] for el in current_elements if "source" not in el["data"]
+        }
+        existing_edges = {
+            (el["data"]["source"], el["data"]["target"]) for el in current_elements if "source" in el["data"]
+        }
+        print("Existing node IDs:", existing_node_ids)
+        print("Existing edges:", existing_edges)
+
+        new_nodes = []
+        new_edges = []
+        for child in G.successors(node_id):
+            child_str = str(child)  # ensure child ID is a string for display
+            if child_str not in existing_node_ids:
+                label = G.nodes[child].get("label", child_str)
+                new_nodes.append({"data": {"id": child_str, "label": label}})
+            if (node_id_str, child_str) not in existing_edges:
+                new_edges.append({"data": {"source": node_id_str, "target": child_str}})
+
+        updated_elements = current_elements + new_nodes + new_edges
+        print("New nodes added:", new_nodes)
+        print("New edges added:", new_edges)
+        print("Updated elements (list):", updated_elements)
+        return updated_elements
+
+
+    @app.callback(
+        Output("cytoscape-graph", "elements"),
+        Input("store-elements", "data")
+    )
+    def update_graph_elements(stored_elements):
+        print("\n--- Callback: update_graph_elements triggered ---")
+        print("Stored elements (list):", stored_elements)
+        # Return the Python list directly rather than converting to a JSON string.
+        return stored_elements
+
+    # Optional: auto-open the browser after a short delay.
     def open_browser():
         webbrowser.open(f"http://{host}:{port}")
-
-    # Launch the browser after a short delay.
     threading.Timer(1, open_browser).start()
 
-    # Clear inline output (useful when running in a notebook)
-    clear_output(wait=True)
-
-    # Run the Dash app.
-    app.run_server(debug=True, host=host, port=port)
+    return app
 
 
 def main():
-    """
-    Main entry point for the graph viewer script.
-    """
     parser = argparse.ArgumentParser(
-        description="Visualize a taxonomy graph using Dash Cytoscape."
+        description="Drill-down Dash Cytoscape viewer using dash-cytoscape==1.0.2."
     )
-    parser.add_argument(
-        "--num_classes",
-        type=int,
-        default=10000,
-        help="Number of classes (default: 10000)",
-    )
-    parser.add_argument(
-        "--top_p", type=float, default=0.9, help="Top p value (default: 0.9)"
-    )
-    parser.add_argument(
-        "--max_depth", type=int, default=6, help="Maximum depth (default: 6)"
-    )
-    parser.add_argument(
-        "--max_width",
-        type=int,
-        default=16,
-        help="Maximum children per node (default: 16)",
-    )
-    parser.add_argument(
-        "--max_attempts", type=int, default=32, help="Maximum attempts (default: 32)"
-    )
-    parser.add_argument(
-        "--temperature", type=float, default=1.5, help="Temperature (default: 1.5)"
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=8056,
-        help="Port to run the server on (default: 8056)",
-    )
-    parser.add_argument(
-        "--host",
-        type=str,
-        default="0.0.0.0",
-        help="Host to bind the server (default: 0.0.0.0 for remote access)",
-    )
+    parser.add_argument("--filename", required=True,
+                        help="Path to the taxonomy JSON in node-link format.")
+    parser.add_argument("--host", default="127.0.0.1",
+                        help="Host for the Dash server.")
+    parser.add_argument("--port", type=int, default=8050,
+                        help="Port for the Dash server.")
     args = parser.parse_args()
 
-    # Construct the filename using the configuration parameters.
-    filename = (
-        f"trees/num_classes_{args.num_classes}_top_p_{args.top_p}_max_depth_{args.max_depth}"
-        f"_max_width_{args.max_width}_max_attempts_{args.max_attempts}"
-        f"_temperature_{args.temperature}.json"
-    )
-
-    # Load the graph from the JSON file.
-    try:
-        G = load_taxonomy_json(filename=filename)
-    except FileNotFoundError:
-        print(f"Error: File '{filename}' not found.")
-        return
-
-    # Visualize the graph.
-    visualize_graph_dash(G, host=args.host, port=args.port)
+    G = load_taxonomy_json(args.filename)
+    app = create_dash_app(G, host=args.host, port=args.port)
+    app.run_server(debug=True, host=args.host, port=args.port)
 
 
 if __name__ == "__main__":
