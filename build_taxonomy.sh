@@ -7,9 +7,17 @@ top_p=0.9
 max_width=128
 
 # This if-else is to make so that max_width * (width_decay_factor ^ max_depth) is around 2.0
-for max_depth in 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32; do
+for max_depth in 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32; do
     # Set width_decay_factor based on max_depth
-    if [ "$max_depth" -eq 8 ]; then
+    if [ "$max_depth" -eq 4 ]; then
+        width_decay_factor=0.36
+    elif [ "$max_depth" -eq 5 ]; then
+        width_decay_factor=0.44
+    elif [ "$max_depth" -eq 6 ]; then
+        width_decay_factor=0.5
+    elif [ "$max_depth" -eq 7 ]; then
+        width_decay_factor=0.56
+    elif [ "$max_depth" -eq 8 ]; then
         width_decay_factor=0.6
     elif [ "$max_depth" -eq 9 ]; then
         width_decay_factor=0.63

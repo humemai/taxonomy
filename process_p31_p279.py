@@ -38,6 +38,7 @@ property usage statistics. It performs the following tasks:
 **Usage:**
     Ensure that the following files and directories are present relative to the script's location:
     - `./entityid2label.json`
+    - `./en_description.json`
     - `./P279/*.tsv`
     - `./P31/*.tsv`
     - `./property_stats.json`
@@ -282,30 +283,6 @@ def print_top_properties(
 # ------------------------------------------------------------------------------
 # 3. P31/P279 PROCESSING FUNCTIONS
 # ------------------------------------------------------------------------------
-
-
-def load_entity_labels(filepath: str) -> dict[str, str]:
-    """
-    Loads entity labels from a JSON file.
-
-    Args:
-        filepath (str): Path to the entityid2label.json file.
-
-    Returns:
-        dict[str, str]: Mapping of entity IDs to their labels.
-    """
-    print(f"Loading entity labels from '{filepath}'...")
-    try:
-        with open(filepath, "r", encoding="utf-8") as f:
-            entityid2label = json.load(f)
-        print(f"Loaded {len(entityid2label)} entity labels.\n")
-        return entityid2label
-    except FileNotFoundError:
-        print(f"Error: File '{filepath}' not found.")
-        return {}
-    except json.JSONDecodeError:
-        print(f"Error: File '{filepath}' is not a valid JSON.")
-        return {}
 
 
 def load_relationships_p31_p279(
@@ -592,6 +569,9 @@ def log_statistics(
     num_p279_entries: int,
     num_p31_entries: int,
     num_errors: int,
+    original_entityid2label_size: int,
+    original_en_description_size: int,
+    reduced_size: int,
 ) -> None:
     """
     Logs the processing statistics to a log file.
@@ -605,6 +585,9 @@ def log_statistics(
         num_p279_entries (int): Number of P279 entries processed.
         num_p31_entries (int): Number of P31 entries processed.
         num_errors (int): Number of errors encountered.
+        original_entityid2label_size (int): Original size of entityid2label.
+        original_en_description_size (int): Original size of en_description.
+        reduced_size (int): Size after reduction to overlapping keys.
     """
     try:
         with open(log_file, "w", encoding="utf-8") as log:
@@ -615,6 +598,13 @@ def log_statistics(
             log.write(f"P279 entries processed: {num_p279_entries}\n")
             log.write(f"P31 entries processed: {num_p31_entries}\n")
             log.write(f"Total errors encountered: {num_errors}\n")
+            log.write(
+                f"Original size of entityid2label: {original_entityid2label_size}\n"
+            )
+            log.write(
+                f"Original size of en_description: {original_en_description_size}\n"
+            )
+            log.write(f"Reduced size after overlapping keys: {reduced_size}\n")
         print(f"Logged statistics to '{log_file}'.")
     except Exception as e:
         print(f"Error writing to log file '{log_file}': {e}")
@@ -709,91 +699,106 @@ def main() -> None:
     # ------------------------------------------------------------------------------
 
     # Load entity labels
-    entityid2label = load_entity_labels("./entityid2label.json")
-    total_entities = len(entityid2label)
+    with open("./entityid2label.json", "r", encoding="utf-8") as f:
+        entityid2label = json.load(f)
+    with open("./en_description.json", "r", encoding="utf-8") as f:
+        en_description = json.load(f)
 
-    if not entityid2label:
-        print("Entity labels are missing. Exiting P31/P279 processing.")
-    else:
-        # Load subclass information (P279)
-        child_to_parents = load_relationships_p31_p279(
-            glob_path="./P279/*.tsv",
-            relationship_type="subclass",
-            entityid2label=entityid2label,
+    original_entityid2label_size = len(entityid2label)
+    original_en_description_size = len(en_description)
+
+    overlapping_keys = set(entityid2label.keys()) & set(en_description.keys())
+
+    # Filter dictionaries to only include overlapping keys
+    entityid2label = {k: v for k, v in entityid2label.items() if k in overlapping_keys}
+    en_description = {k: v for k, v in en_description.items() if k in overlapping_keys}
+
+    # Rewrite entityid2label and en_description to only include overlapping keys
+    with open("./entityid2label.json", "w", encoding="utf-8") as f:
+        json.dump(entityid2label, f, ensure_ascii=False, indent=4)
+
+    with open("./en_description.json", "w", encoding="utf-8") as f:
+        json.dump(en_description, f, ensure_ascii=False, indent=4)
+
+    total_entities = len(overlapping_keys)
+
+    # Load subclass information (P279)
+    child_to_parents = load_relationships_p31_p279(
+        glob_path="./P279/*.tsv",
+        relationship_type="subclass",
+        entityid2label=entityid2label,
+    )
+    num_p279_entries = len(child_to_parents)
+
+    # Load instance information (P31)
+    entity_instance_of = load_relationships_p31_p279(
+        glob_path="./P31/*.tsv",
+        relationship_type="instance",
+        entityid2label=entityid2label,
+    )
+    num_p31_entries = len(entity_instance_of)
+
+    # Count classes
+    class_counts = count_classes_p31_p279(entity_instance_of)
+    total_classes = len(class_counts)
+
+    # Compute cumulative distribution of classes
+    cumulative_percentage_classes = compute_cumulative_distribution_classes(
+        class_counts
+    )
+
+    # Define thresholds
+    thresholds_classes = [80, 90, 95, 99]
+
+    # Find thresholds
+    classes_for_thresholds = find_thresholds_classes(
+        cumulative_percentage=cumulative_percentage_classes,
+        thresholds=thresholds_classes,
+    )
+
+    # Print threshold results
+    print("\nResults for class thresholds (80%, 90%, 95%, 99%):")
+    total_classes_count = len(class_counts)
+    for threshold in thresholds_classes:
+        num_classes_needed = classes_for_thresholds.get(threshold, 0)
+        proportion = (
+            (num_classes_needed / total_classes_count * 100)
+            if total_classes_count
+            else 0
         )
-        num_p279_entries = len(child_to_parents)
-
-        # Load instance information (P31)
-        entity_instance_of = load_relationships_p31_p279(
-            glob_path="./P31/*.tsv",
-            relationship_type="instance",
-            entityid2label=entityid2label,
-        )
-        num_p31_entries = len(entity_instance_of)
-
-        # Count classes
-        class_counts = count_classes_p31_p279(entity_instance_of)
-        total_classes = len(class_counts)
-
-        # Compute cumulative distribution of classes
-        cumulative_percentage_classes = compute_cumulative_distribution_classes(
-            class_counts
-        )
-
-        # Define thresholds
-        thresholds_classes = [80, 90, 95, 99]
-
-        # Find thresholds
-        classes_for_thresholds = find_thresholds_classes(
-            cumulative_percentage=cumulative_percentage_classes,
-            thresholds=thresholds_classes,
-        )
-
-        # Print threshold results
-        print("\nResults for class thresholds (80%, 90%, 95%, 99%):")
-        total_classes_count = len(class_counts)
-        for threshold in thresholds_classes:
-            num_classes_needed = classes_for_thresholds.get(threshold, 0)
-            proportion = (
-                (num_classes_needed / total_classes_count * 100)
-                if total_classes_count
-                else 0
-            )
-            print(
-                f"  - To reach {threshold}% coverage, need {num_classes_needed} classes "
-                f"({proportion:.2f}% of total {total_classes_count})."
-            )
-
-        # Plot and save cumulative distribution of classes
-        plot_cumulative_distribution_classes(
-            cumulative_percentage=cumulative_percentage_classes,
-            thresholds=thresholds_classes,
-            classes_for_thresholds=classes_for_thresholds,
-            output_directory=output_directory,
-            output_filename="classes_cumulative_distribution.pdf",
-        )
-
-        # Print top 100 classes
-        print_top_classes(
-            class_counts=class_counts, entityid2label=entityid2label, top_n=100
-        )
-
-        # ------------------------------------------------------------------------------
-        # 3. SAVE DATA STRUCTURES AND FIGURES
-        # ------------------------------------------------------------------------------
-
-        print("\nSaving data structures and figures...")
-
-        # Save class_counts
-        class_counts_dict = dict(class_counts)
-        save_to_json(
-            class_counts_dict, os.path.join(output_directory, "class_counts.json")
+        print(
+            f"  - To reach {threshold}% coverage, need {num_classes_needed} classes "
+            f"({proportion:.2f}% of total {total_classes_count})."
         )
 
-        # Save child_to_parents
-        save_to_json(
-            child_to_parents, os.path.join(output_directory, "child_to_parents.json")
-        )
+    # Plot and save cumulative distribution of classes
+    plot_cumulative_distribution_classes(
+        cumulative_percentage=cumulative_percentage_classes,
+        thresholds=thresholds_classes,
+        classes_for_thresholds=classes_for_thresholds,
+        output_directory=output_directory,
+        output_filename="classes_cumulative_distribution.pdf",
+    )
+
+    # Print top 100 classes
+    print_top_classes(
+        class_counts=class_counts, entityid2label=entityid2label, top_n=100
+    )
+
+    # ------------------------------------------------------------------------------
+    # 3. SAVE DATA STRUCTURES AND FIGURES
+    # ------------------------------------------------------------------------------
+
+    print("\nSaving data structures and figures...")
+
+    # Save class_counts
+    class_counts_dict = dict(class_counts)
+    save_to_json(class_counts_dict, os.path.join(output_directory, "class_counts.json"))
+
+    # Save child_to_parents
+    save_to_json(
+        child_to_parents, os.path.join(output_directory, "child_to_parents.json")
+    )
 
     # ------------------------------------------------------------------------------
     # 4. LOGGING AND STATISTICS
@@ -815,6 +820,9 @@ def main() -> None:
         num_p279_entries=num_p279_entries if "num_p279_entries" in locals() else 0,
         num_p31_entries=num_p31_entries if "num_p31_entries" in locals() else 0,
         num_errors=total_errors,
+        original_entityid2label_size=original_entityid2label_size,
+        original_en_description_size=original_en_description_size,
+        reduced_size=total_entities,
     )
 
     # Also, print statistics to the console
@@ -831,12 +839,14 @@ def main() -> None:
         f"P31 entries processed: {num_p31_entries if 'num_p31_entries' in locals() else 0}"
     )
     print(f"Total errors encountered: {total_errors}")
+    print(f"Original size of entityid2label: {original_entityid2label_size}")
+    print(f"Original size of en_description: {original_en_description_size}")
+    print(f"Reduced size after overlapping keys: {total_entities}")
 
 
 # ------------------------------------------------------------------------------
 # ENTRY POINT
 # ------------------------------------------------------------------------------
-
 
 if __name__ == "__main__":
     main()

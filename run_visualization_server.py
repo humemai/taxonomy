@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 """
-run_visualization_server.py
+run_dash_tree.py
 
 A drill-down Dash Cytoscape viewer using dash-cytoscape==1.0.2.
 This version converts node IDs to strings for display but converts them back to integers for graph lookups.
 It now toggles children: when you click an expanded node, all of its descendant nodes are removed (collapsed).
 
 Usage:
-    python run_visualization_server.py --filename /path/to/your.json [--host 0.0.0.1] [--port 8050]
+    python run_dash_tree.py --filename /path/to/your.json [--host 0.0.0.1] [--port 8050]
 """
 
 import argparse

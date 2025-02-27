@@ -90,7 +90,9 @@ Example Entity (`Q42` - Douglas Adams)
 }
 ```
 
-## Get all the properties as json: [`run_properties.py`](run_properties.py)
+## Scripts
+
+### Get all the properties as json: [`run_properties.py`](run_properties.py)
 
 Simply run:
 
@@ -125,13 +127,13 @@ Each entry in the JSON file contains the following fields:
 
 **On my machine, this took about 1 hour and 11 minutes.**
 
-## Get subclass_of (P279) triples: [`run_p279.py`](run_p279.py)
+### Get subclass_of (P279) triples: [`run_p279.py`](run_p279.py)
 
 To extract `subclass_of` (`P279`) relationships from the Wikidata dump, you can use the
 provided Python script `run_p279.py`. This script processes the raw JSON dump, extracts
 `P279` claims, and saves them in a TSV format for easier downstream analysis.
 
-### Steps to Extract `P279` Triples
+#### Steps to Extract `P279` Triples
 
 1. **Run the `run_p279.py` script**: Use the following command to extract `P279`
    triples:
@@ -175,7 +177,7 @@ provided Python script `run_p279.py`. This script processes the raw JSON dump, e
    ...
    ```
 
-### Tips for Efficient Processing
+#### Tips for Efficient Processing
 
 - **Batch Size**: Adjust the `--num_entities_per_batch` parameter based on your system’s
   memory and processing capabilities. Larger batches reduce file overhead but require
@@ -190,12 +192,12 @@ systems.
 
 **On my machine, this took about 13 hours and 56 minutes.**
 
-## Get instance_of (P31) triples: [`run_p31.py`](run_p31.py)
+### Get instance_of (P31) triples: [`run_p31.py`](run_p31.py)
 
 To extract `instance_of` (`P31`) relationships from the Wikidata dump, use the
 `run_p31.py` script:
 
-### Steps to Extract `P31` Triples
+#### Steps to Extract `P31` Triples
 
 1. Run the script: `python run_p31.py --dump_file latest-all.json.gz --p31_dir P31
 --num_entities_per_batch 50000`
@@ -220,14 +222,14 @@ To extract `instance_of` (`P31`) relationships from the Wikidata dump, use the
 
 **On my machine, this took about 15 hours and 58 minutes.**
 
-## Extract English Descriptions from Wikidata [`extract_en_descriptions.py`](extract_en_descriptions.py)
+### Extract English Descriptions from Wikidata [`extract_en_descriptions.py`](extract_en_descriptions.py)
 
 This script parses a compressed Wikidata JSON dump (e.g., latest-all.json.gz) and
 extracts the English descriptions of entities. It processes entities in batches,
 temporarily storing each batch as a TSV file. After aggregating all batches into a
 single JSON file, the temporary TSV directory is deleted.
 
-### Usage
+#### Usage
 
 ```bash
 python extract_en_descriptions.py \
@@ -249,7 +251,7 @@ python extract_en_descriptions.py \
 - **--dummy** (flag)  
   If set, only one batch of entities is processed. Useful for quick testing.
 
-### Output
+#### Output
 
 - **Final JSON File:**  
   A file named en_description.json containing all extracted (entity_id, description)
@@ -269,7 +271,7 @@ python extract_en_descriptions.py \
   the directory specified by --desc_dir. **After aggregation, the entire --desc_dir
   directory is deleted**, leaving only `en_description.json` and the log file.
 
-### Example
+#### Example
 
 ```bash
 python extract_en_descriptions.py \
@@ -286,12 +288,12 @@ After the script completes:
   extraction process.
 - The temporary TSV files in the Desc directory will have been removed.
 
-## Get English labels: [`run_entityid2label.py`](run_entityid2label.py)
+### Get English labels: [`run_entityid2label.py`](run_entityid2label.py)
 
 The `run_entityid2label.py` script extracts `entity ID` to `English labels` mappings
 from the Wikidata JSON dump and saves them as a JSON file.
 
-### Steps to Extract English Labels
+#### Steps to Extract English Labels
 
 1. Run the script:
 
@@ -326,12 +328,12 @@ labels in a simple, usable format.
 
 **On my machine, this took about 2 hours and 38 minutes.**
 
-## Get the stats of the properties used: [`run_property_stats.py`](run_property_stats.py)
+### Get the stats of the properties used: [`run_property_stats.py`](run_property_stats.py)
 
 The `run_property_stats.py` script calculates the usage statistics of properties in the
 Wikidata JSON dump and saves the results as a JSON file.
 
-### Steps to Get Property Stats
+#### Steps to Get Property Stats
 
 1. Run the script:
 
@@ -365,10 +367,6 @@ Wikidata JSON dump and saves the results as a JSON file.
    - Top 5 most frequently used properties.
 
 **On my machine, this took about 2 hours and 40 minutes.**
-
-## Building a hierarchy using the P31 and P279 triples
-
-This section requires that you ran all the 6 scripts above, which can run in parallel.
 
 ### [`process_p31_p279.py`](./process_p31_p279.py) Script Overview
 
@@ -411,6 +409,11 @@ statistics. The script performs the following key tasks:
     using `load_relationships_p31_p279`.
   - **Instance Relationships (P31):** Loaded from TSV files in the `./P31/` directory
     using `load_relationships_p31_p279`.
+- **Data Filtering:**
+  - Filters out non-English entities based on the loaded labels and descriptions to
+    ensure keys exist in both.
+  - **Note:** The `entityid2label` and `en_description` files are saved by overwriting
+    to only include overlapping keys.
 - **Data Analysis:**
   - Counts the frequency of each class based on instance data using
     `count_classes_p31_p279`.
@@ -434,7 +437,14 @@ statistics. The script performs the following key tasks:
   - Saves generated plots (`properties_cumulative_distribution.png` and
     `classes_cumulative_distribution.png`) within the `process_p31_p279` directory.
 
-#### 7. Usage Instructions
+#### 5. Logging and Statistics
+
+- **Function:** `log_statistics`
+- **Purpose:** Logs the processing statistics to a log file, including total processing
+  time, total entities processed, classes counted, properties analyzed, and any errors
+  encountered.
+
+#### 6. Usage Instructions
 
 - **Dependencies:**
   - Python 3.10+
@@ -449,15 +459,6 @@ statistics. The script performs the following key tasks:
   ```bash
   python process_p31_p279.py
   ```
-
-#### 8. Outputs
-
-- **JSON Files:**
-  - `process_p31_p279/class_counts.json`
-  - `process_p31_p279/child_to_parents.json`
-- **Figures:**
-  - `process_p31_p279/properties_cumulative_distribution.png`
-  - `process_p31_p279/classes_cumulative_distribution.png`
 
 **On my machine, this took about 6 minutes.**
 
@@ -500,10 +501,10 @@ python get_paths.py \
 ```
 
 - `--num_classes`: Number of top classes to process (default: 10)
-- `--max-depth`: Maximum depth for path generation (default: None)
+- `--max_depth`: Maximum depth for path generation (default: None)
 - `--max_paths_per_class`: Maximum number of paths per class for each direction
   (default: None)
-- `--batch-size`: Number of combined paths per batch TSV file (default: 50000)
+- `--batch_size`: Number of combined paths per batch TSV file (default: 50000)
 - `--direction`: Direction of paths to include (`upward`, `downward`, or `both`)
 - `--allowed_threshold`: Minimum fraction of allowed nodes (popular nodes) in a path.
   Higher this number is, the lower number of paths will be generated (default: 0.3)
@@ -669,6 +670,132 @@ This will:
     paths and save them in `stats_{K}.json`.
   - Store entity frequencies in `counts_{K}.json` and their labels in `vocab_{K}.json`.
 
+### [`get_graphs.py`](./get_graphs.py) Script Overview
+
+The get_graphs.py script converts the extracted hierarchical paths into network graphs
+for analysis and visualization. It aggregates paths from the top-K Wikidata classes,
+constructs directed graphs, analyzes their structure, and saves them in a format
+suitable for downstream applications.
+
+#### Key Features
+
+- **Path Aggregation**: Processes hierarchical paths for the top-K Wikidata classes
+  (e.g., top 10, 100, 1000, 10000 most frequent classes)
+- **Graph Construction**: Creates directed graphs where each node is a Wikidata entity
+  and edges represent relationships from the paths
+- **Component Analysis**: Identifies and analyzes weakly connected components in the
+  graphs
+- **Cycle Detection**: Detects and counts cycles within graph components
+- **JSON Export**: Saves the largest connected component as a JSON file in node-link
+  format for visualization or further analysis
+
+#### Usage
+
+```bash
+python get_graphs.py \
+--num_classes 10 100 1000 10000 \
+--class_counts_json ./process_p31_p279/class_counts.json \
+--extracted_paths_dir ./extracted_paths \
+--output_dir ./extracted_graphs \
+[--sample_first_batch]
+```
+
+#### Parameters
+
+- `--num_classes`: List of top-K classes to process (default: 10, 100, 1000, 10000)
+- `--class_counts_json`: Path to the JSON file containing class frequency counts
+- `--extracted_paths_dir`: Directory containing the extracted paths (TSV files)
+- `--output_dir`: Directory to save output files (graphs, logs)
+- `--sample_first_batch`: Optional flag to process only the first batch file for each
+  class (for faster testing)
+
+#### Outputs
+
+For each specified number of classes (K), the script generates:
+
+1. **Graph JSON file**: `graph_{K}.json` - Contains the largest connected component in
+   node-link format
+2. **Log file**: `graph_{K}.log` - Contains detailed statistics including:
+   - Total number of paths processed
+   - Number of nodes and edges in the graph
+   - Number of connected components
+   - Component sizes
+   - Cycle counts per component
+
+#### Processing Flow
+
+1. Load class counts to identify the top-K classes
+2. Locate and read TSV files containing paths for those classes
+3. Construct a directed graph from all paths
+4. Find and analyze weakly connected components
+5. Save the largest component as a JSON file
+6. Log comprehensive statistics about the graph structure
+
+This script is particularly useful for understanding the connectivity and structure of
+the Wikidata hierarchy across different scales, from small subsets (top 10 classes) to
+large portions of the knowledge base (top 10,000 classes).
+
+### [`run_dash_graph.py`](./run_dash_graph.py) Script Overview
+
+The run_dash_graph.py script provides an interactive visualization tool for exploring
+graph structures generated from Wikidata hierarchies. It uses Dash and Cytoscape to
+create a web-based interface for exploring potentially complex graph structures in an
+intuitive manner.
+
+#### Key Features
+
+- **Interactive Graph Visualization**: Renders network graphs using Dash Cytoscape with
+  multiple layout options
+- **Full Graph Display**: Shows all nodes and edges from the input graph JSON file
+- **Dynamic Layout Switching**: Allows users to change graph layouts on-the-fly with
+  options including:
+  - Concentric
+  - Cola
+  - Cose
+  - Circle
+  - Grid
+  - Breadthfirst
+  - Dagre (hierarchical)
+- **Node Interaction**: Click on nodes to focus and potentially expand the view
+- **Performance Warnings**: Provides warnings when visualizing large graphs (>1000
+  nodes)
+- **Clear Visual Styling**: Nodes with labels and distinct styling, directed edges with
+  arrow indicators
+
+#### Usage
+
+```bash
+python run_dash_graph.py --filename /path/to/graph_file.json [--host 127.0.0.1] [--port 8050]
+```
+
+#### Parameters
+
+- `--filename`: Path to the graph JSON file in node-link format (typically one of the
+  `graph_{K}.json` files created by get_graphs.py)
+- `--host`: Host address for the Dash server (default: 127.0.0.1)
+- `--port`: Port number for the Dash server (default: 8050)
+
+#### Visualization Process
+
+1. The script loads a graph from the specified JSON file using NetworkX
+2. It converts all nodes and edges into Cytoscape elements with appropriate styling
+3. A Dash application is created with:
+   - A layout dropdown selector for choosing different graph arrangements
+   - The main Cytoscape component displaying the graph
+   - Node styling with light blue backgrounds and centered labels
+   - Edge styling with arrows indicating direction
+4. The web interface automatically opens in your default browser
+5. Users can interact with the visualization by:
+   - Clicking nodes to highlight them
+   - Selecting different layouts from the dropdown
+   - Panning and zooming to explore complex graphs
+
+This visualization tool is particularly valuable for examining the structure of the
+Wikidata hierarchical graphs generated in previous steps, allowing researchers and data
+scientists to gain insights into the relationships between entities and the overall
+network topology.
+
+<!--
 ### [`train.py`](./train.py) Script Overview
 
 `train.py` is a comprehensive training script designed to fine-tune a GPT-2 language
@@ -678,7 +805,7 @@ class-aware sampling mechanism to ensure balanced training across classes.
 
 #### Key Components
 
-- **Command Line Argument Parsing**  
+- **Command Line Argument Parsing**
   The script begins by parsing various command line arguments to configure the training
   process. Options include:
 
@@ -690,12 +817,12 @@ class-aware sampling mechanism to ensure balanced training across classes.
     than this threshold)
   - Options to load from a checkpoint or start training from scratch
 
-- **Custom Tokenizer Creation**  
+- **Custom Tokenizer Creation**
   The script checks for an existing custom tokenizer directory. If not found, it creates
   a new tokenizer based on the GPT-2 model by adding special tokens such as `<BOS>`,
   `<EOS>`, `<PAD>`, and `<DOWNWARD>`. This tokenizer is then saved for future runs.
 
-- **Efficient Data Loading with Lazy Dataset**  
+- **Efficient Data Loading with Lazy Dataset**
   To handle large datasets efficiently, the script constructs an
   **EfficientLazyDataset** that:
 
@@ -705,7 +832,7 @@ class-aware sampling mechanism to ensure balanced training across classes.
   - Supports a `sample_first_batch` option to limit the dataset to the first batch per
     class.
 
-- **Custom Class-Aware Sampling**  
+- **Custom Class-Aware Sampling**
   A custom trainer class (`MyTrainer`) extends Hugging Face’s `Trainer` to include
   class-aware sampling:
 
@@ -714,7 +841,7 @@ class-aware sampling mechanism to ensure balanced training across classes.
   - Uses a weighted random sampler (or a numpy-based sampler for very large datasets) to
     ensure balanced representation of classes during training.
 
-- **Model Architecture and Checkpointing**  
+- **Model Architecture and Checkpointing**
   Depending on the selected model size (`tiny`, `small`, `medium`, or `large`), the
   script:
 
@@ -725,7 +852,7 @@ class-aware sampling mechanism to ensure balanced training across classes.
   - Resizes token embeddings to match the vocabulary size of the custom tokenizer and
     sets special token IDs.
 
-- **Training Setup and Execution**  
+- **Training Setup and Execution**
   The training parameters are configured using Hugging Face’s `TrainingArguments`,
   including:
 
@@ -767,39 +894,39 @@ and knowledge graph analysis.
 
 #### Key Features
 
-- **Custom Model and Tokenizer Loading:**  
+- **Custom Model and Tokenizer Loading:**
   Loads a GPT-2 model and its corresponding tokenizer from specified checkpoint
   directories. This allows for a tailored language model that is fine-tuned for the task
   of taxonomy generation.
 
-- **Phrase Vocabulary and Trie Construction:**  
+- **Phrase Vocabulary and Trie Construction:**
   Reads a set of valid phrases from JSON files and builds a trie data structure to
   efficiently validate and manage token sequences. This ensures that only acceptable
   phrases are included during the tree expansion process.
 
-- **Hierarchical Tree Construction:**  
+- **Hierarchical Tree Construction:**
   Begins with a root node (`<BOS>`) and recursively expands the tree by generating
   candidate child phrases. Each new phrase is validated against the pre-loaded
   vocabulary and trie, ensuring a structured and non-redundant hierarchy.
 
-- **Parallel Batch Generation and Expansion:**  
+- **Parallel Batch Generation and Expansion:**
   Implements parallel batch generation of candidate phrases using nucleus (top-p)
   sampling with temperature control. The recursive tree expansion is parallelized via
   threading, significantly speeding up the generation process.
 
-- **Stochastic Generation:**  
+- **Stochastic Generation:**
   The taxonomy generation process is inherently stochastic, meaning that the output can
   vary with each run. You can adjust the level of randomness by modifying
   hyperparameters such as the sampling temperature and top-p threshold. Lower
   temperature values and stricter top-p filtering make the generation more
   deterministic, while higher values yield more diverse and creative outputs.
 
-- **Visualization and Export:**  
+- **Visualization and Export:**
   Provides utilities to convert the hierarchical tree into a NetworkX directed graph.
   The taxonomy can be visualized interactively using PyVis or Dash Cytoscape and is also
   saved as a JSON file for further analysis.
 
-- **Configurable Parameters:**  
+- **Configurable Parameters:**
   Offers extensive command-line options to control various aspects of the generation
   process such as:
   - Number of classes to load
@@ -859,7 +986,7 @@ hierarchical taxonomies. Its stochastic nature allows for diverse outputs, and b
 fine-tuning the hyperparameters, you can control how deterministic or creative the
 resulting taxonomy will be.
 
-### [`run_visualization_server.py`](./run_visualization_server.py) Script Overview
+### [`run_dash_tree.py`](./run_dash_tree.py) Script Overview
 
 This script loads a taxonomy graph from a JSON file in node-link format and visualizes
 it using Dash Cytoscape. The graph is rendered in a web browser using the dagre layout
@@ -868,7 +995,7 @@ for a balanced hierarchical tree.
 **Usage:**
 
 ```bash
-python run_visualization_server.py \
+python run_dash_tree.py \
 [--num_classes NUM_CLASSES] \
 [--top_p TOP_P] \
 [--max_depth MAX_DEPTH] \
@@ -884,7 +1011,7 @@ python run_visualization_server.py \
 **Example:**
 
 ```bash
-python run_visualization_server.py \
+python run_dash_tree.py \
 --num_classes 10 \
 --top_p 0.9 \
 --max_depth 4 \
@@ -907,7 +1034,7 @@ python run_visualization_server.py \
 - Upon launching, the script starts a Dash server bound to the specified host and port
   and automatically opens the graph in a web browser.
 - This interactive visualization allows users to explore the taxonomy graph, making it a
-  useful tool for analyzing hierarchical structures.
+  useful tool for analyzing hierarchical structures. -->
 
 ## Contributing
 

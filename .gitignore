@@ -174,7 +174,7 @@ stats.json
 P31/
 P279/
 process_p31_p279/
-extracted_paths/
+extracted_paths*/
 vocab/
 en_description/
 en_description.json

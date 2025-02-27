@@ -2,17 +2,17 @@
 """
 get_paths.py
 
-Generates all possible combinations of unique upward and/or downward paths for the top N classes
-and exports them as batched TSV files into class-specific directories. This script supports DFS-based
-path generation, filtering of paths by an allowed node threshold, and optional removal of the last
-downward path. It also logs detailed statistics for each class while managing memory via explicit
-garbage collection.
+Generates all possible combinations of unique upward and/or downward paths for the top N
+classes and exports them as batched TSV files into class-specific directories. This
+script supports DFS-based path generation, filtering of paths by an allowed node
+threshold, and optional removal of the last downward path. It also logs detailed
+statistics for each class while managing memory via explicit garbage collection.
 
 Usage:
     python get_paths.py [--num_classes NUM_CLASSES]
-        [--max-depth MAX_DEPTH] [--max_paths_per_class MAX_PATHS_PER_CLASS]
+        [--max_depth MAX_DEPTH] [--max_paths_per_class MAX_PATHS_PER_CLASS]
         [--allowed_threshold ALLOWED_THRESHOLD]
-        [--batch-size BATCH_SIZE] --direction {upward,downward,both}
+        [--batch_size BATCH_SIZE] --direction {upward,downward,both}
         [--output_dir OUTPUT_DIR]
 
 Example:
@@ -45,8 +45,9 @@ class TrieNode:
     Represents a node in a Trie (prefix tree) data structure.
 
     Attributes:
-        children (dict[str, TrieNode]): A dictionary mapping entities to their child TrieNodes.
-        is_end_of_path (bool): Indicates whether the current node marks the end of a valid path.
+        children (dict[str, TrieNode]): A dictionary mapping entities to their child
+        TrieNodes. is_end_of_path (bool): Indicates whether the current node marks the
+        end of a valid path.
     """
 
     def __init__(self) -> None:
@@ -56,7 +57,8 @@ class TrieNode:
 
 class PathTrie:
     """
-    Trie (prefix tree) data structure for efficiently storing and retrieving unique paths.
+    Trie (prefix tree) data structure for efficiently storing and retrieving unique
+    paths.
 
     Attributes:
         root (TrieNode): The root node of the Trie.
@@ -89,9 +91,12 @@ class PathTrie:
         Traverses the Trie and retrieves all unique complete paths.
 
         Args:
-            node (Optional[TrieNode]): The current node in the Trie during traversal. Defaults to root.
-            path (Optional[list[str]]): The current path being traversed. Defaults to an empty list.
-            all_paths (Optional[list[list[str]]]): The list accumulating all unique paths. Defaults to an empty list.
+            node (Optional[TrieNode]): The current node in the Trie during traversal.
+                Defaults to root.
+            path (Optional[list[str]]): The current path being traversed. Defaults to an
+                empty list.
+            all_paths (Optional[list[list[str]]]): The list accumulating all unique
+                paths. Defaults to an empty list.
 
         Returns:
             list[list[str]]: A list of all unique complete paths stored in the Trie.
@@ -147,12 +152,16 @@ def generate_paths_dfs(
         min_depth (int): The minimum allowed depth for path generation.
         max_depth (Optional[int]): The maximum allowed depth for path generation.
             If None, no upper bound.
-        max_paths (Optional[int]): The maximum number of paths to generate. If None, no limit.
-        allowed_nodes (Optional[set[str]]): The set of allowed nodes (e.g., top classes).
-        allowed_threshold (Optional[float]): The minimum fraction of allowed nodes that must be in a path.
+        max_paths (Optional[int]): The maximum number of paths to generate. If None, no
+            limit.
+        allowed_nodes (Optional[set[str]]): The set of allowed nodes (e.g., top
+            classes).
+        allowed_threshold (Optional[float]): The minimum fraction of allowed nodes that
+            must be in a path.
 
     Yields:
-        list[str]: A list of entities representing a complete path from the starting node.
+        list[str]: A list of entities representing a complete path from the starting
+            node.
     """
     stack: list[tuple[str, list[str]]] = [(node, [node])]
     paths_generated = 0  # Counter to track the number of generated paths
@@ -164,11 +173,11 @@ def generate_paths_dfs(
         current, path = stack.pop()
 
         # Skip if path exceeds max_depth
-        if max_depth and len(path) > max_depth:
+        if max_depth and (len(path) - 1) > max_depth:
             continue
 
         if current not in mapping or not mapping[current]:
-            if len(path) >= min_depth:
+            if (len(path) - 1) >= min_depth:
                 # If threshold checking is requested, check the fraction here.
                 if allowed_nodes is not None and allowed_threshold is not None:
                     allowed_count = sum(1 for n in path if n in allowed_nodes)
@@ -192,7 +201,8 @@ def invert_mapping(child_to_parents: dict[str, list[str]]) -> dict[str, list[str
     ensuring that there are no duplicate children in the lists.
 
     Args:
-        child_to_parents (dict[str, list[str]]): Mapping from child nodes to parent nodes.
+        child_to_parents (dict[str, list[str]]): Mapping from child nodes to parent
+            nodes.
 
     Returns:
         dict[str, list[str]]: Mapping from parent nodes to unique child nodes.
@@ -269,8 +279,9 @@ def sample_and_combine_paths(
     nodes_to_avoid: list[str] = [],
 ) -> None:
     """
-    Samples upward and/or downward paths from the top N classes, combines them in a shuffled order,
-    batches them, and inserts them as TSV files. Logs important statistics for each class.
+    Samples upward and/or downward paths from the top N classes, combines them in a
+    shuffled order, batches them, and inserts them as TSV files. Logs important
+    statistics for each class.
 
     Args:
         num_classes (int): Number of top classes to process.
@@ -280,9 +291,11 @@ def sample_and_combine_paths(
         output_dir (str): Directory where TSV and log files will be saved.
         direction (str): Direction of paths to include ('upward', 'downward', 'both').
         max_depth (Optional[int]): Maximum depth for path generation.
-        max_paths_per_class (Optional[int]): Maximum number of paths per class for each direction.
+        max_paths_per_class (Optional[int]): Maximum number of paths per class for each
+            direction.
         batch_size (int): Number of combined paths per batch TSV file.
-        allowed_threshold (Optional[float]): Minimum fraction of allowed nodes in a path.
+        allowed_threshold (Optional[float]): Minimum fraction of allowed nodes in a
+            path.
         remove_the_last_downward_path (bool): Remove the last downward path.
         nodes_to_avoid (list[str]): List of nodes to avoid due to excessive paths.
     """
@@ -317,7 +330,7 @@ def sample_and_combine_paths(
                 upward_paths_gen = generate_paths_dfs(
                     node,
                     child_to_parents,
-                    min_depth=2,
+                    min_depth=1,
                     max_depth=max_depth,
                     max_paths=max_paths_per_class,
                     allowed_nodes=allowed_nodes,
@@ -346,7 +359,7 @@ def sample_and_combine_paths(
                 downward_paths_gen = generate_paths_dfs(
                     node,
                     parent_to_children,
-                    min_depth=3,
+                    min_depth=2,
                     max_depth=max_depth,
                     max_paths=max_paths_per_class,
                     allowed_nodes=allowed_nodes,
@@ -368,7 +381,8 @@ def sample_and_combine_paths(
                     downward_trie.insert(path)
                 unique_downward_paths = downward_trie.traverse()
                 print(
-                    f"Unique downward paths after Trie insertion: {len(unique_downward_paths)}"
+                    f"Unique downward paths after Trie insertion: "
+                    f"{len(unique_downward_paths)}"
                 )
             else:
                 print(
@@ -639,7 +653,7 @@ def main():
         help="Number of top classes to process (default: 10)",
     )
     parser.add_argument(
-        "--max-depth",
+        "--max_depth",
         type=int,
         default=None,
         help="Maximum depth for path generation (default: None)",
@@ -657,13 +671,13 @@ def main():
         help="Allowed threshold for the number of top classes in the generated paths (default: None)",
     )
     parser.add_argument(
-        "--no-remove-the-last-downward-path",
+        "--no_remove_the_last_downward_path",
         action="store_false",
         dest="remove_the_last_downward_path",
         help="Do not remove the last downward path (default: remove the last downward path is True)",
     )
     parser.add_argument(
-        "--batch-size",
+        "--batch_size",
         type=int,
         default=50000,
         help="Number of combined paths per batch TSV file (default: 50000)",
@@ -682,7 +696,7 @@ def main():
         help="Path to class_counts.json, which contains class counts (default: './process_p31_p279/class_counts.json')",
     )
     parser.add_argument(
-        "--child-to-parents-json",
+        "--child_to_parents_json",
         type=str,
         default="./process_p31_p279/child_to_parents.json",
     )
@@ -693,7 +707,7 @@ def main():
         help="Directory to store TSV and log files (default: './extracted_paths')",
     )
     parser.add_argument(
-        "--nodes-to-avoid",
+        "--nodes_to_avoid",
         type=str,
         nargs="+",
         default=[],
@@ -727,11 +741,11 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
     print(f"Output directory '{output_dir}' is ready.")
 
-    with open(class_counts_path, "r", encoding="utf-8") as f:
-        class_counts = json.load(f)
-
     with open(child_to_parents_path, "r", encoding="utf-8") as f:
         child_to_parents = json.load(f)
+
+    with open(class_counts_path, "r", encoding="utf-8") as f:
+        class_counts = json.load(f)
 
     # Automatically generate parent_to_children mapping
     parent_to_children = invert_mapping(child_to_parents)
