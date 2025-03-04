@@ -49,10 +49,12 @@ def create_dash_app(G: nx.DiGraph, host: str, port: int) -> Dash:
 
     # --- Find the root node: the node whose "label" is "entity" ---
     try:
-        root_node = next(n for n, d in G.nodes(data=True) if d.get("label") == "entity")
+        root_node = next(
+            n for n, d in G.nodes(data=True) if d.get("label") in ["entity", "Thing"]
+        )
         print("Found root node (raw):", root_node)
     except StopIteration:
-        raise ValueError("No node with label 'entity' found in the graph.")
+        raise ValueError("Root node not found in the graph.")
 
     # Convert the root node ID to a string for display
     root_node_str = str(root_node)
@@ -120,7 +122,8 @@ def create_dash_app(G: nx.DiGraph, host: str, port: int) -> Dash:
 
         # The tapped node's id comes in as a string, but the graph uses integers.
         node_id_str = tapped_node["id"]
-        node_id = int(node_id_str)
+        # node_id = int(node_id_str)
+        node_id = node_id_str
 
         # Get immediate children of this node.
         immediate_children = list(G.successors(node_id))
